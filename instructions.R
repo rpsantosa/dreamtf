@@ -49,7 +49,7 @@ library(data.table)
 library(caret)
 library(reshape2)
 tf<-'ARID3A'
-paths(tf)
+#paths(tf)
 setwd('/home/ricardo/hd/projects/dream_tf_competition/data/writeup')
 path_to_tfsname<-"tfs.xls"
 con_results<-'/home/ricardo/hd/projects/dream_tf_competition/data/writeup/results/'
