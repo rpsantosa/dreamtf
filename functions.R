@@ -281,10 +281,10 @@ make_scores_final_dnase<-function(tf,e){
 }
 
 dnase_train<-function(tf,tissue_train){
-  DIR_TF<-paste0(con_results,tf,'/')
-  #con_chipseq_label_tf<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/ChIPseq/labels/',tf,'.train.labels.tsv.gz.1.gz')
-  con_chipseq_label_tf<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/ChIPseq/labels/',tf,'.train.labels.tsv.gz')
-  #nslots<-strsplit(readLines(con<-gzfile(con_chipseq_labelno1),n=1)[[1]],'\t')[[1]][-c(1,2,3)]
+  # DIR_TF<-paste0(con_results,tf,'/')
+  # #con_chipseq_label_tf<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/ChIPseq/labels/',tf,'.train.labels.tsv.gz.1.gz')
+  # con_chipseq_label_tf<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/ChIPseq/labels/',tf,'.train.labels.tsv.gz')
+  # #nslots<-strsplit(readLines(con<-gzfile(con_chipseq_labelno1),n=1)[[1]],'\t')[[1]][-c(1,2,3)]
   x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
   chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
   rm(x);gc()
@@ -293,9 +293,9 @@ dnase_train<-function(tf,tissue_train){
   #extraCols_bind<-rep('character',length(nslots));names(extraCols_bind)<-nslots
   extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
   tissue_train<-t_train
-  con_dnase_peak_train<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/essential_training_data/DNASE/peaks/conservative/',
+  con_dnase_peak_train<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                                'DNASE.',tissue_train,'.conservative.narrowPeak.gz')
-  con_dnase_fc_train<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/essential_training_data/DNASE/fold_coverage_wiggles/',
+  con_dnase_fc_train<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
                              'DNASE.',tissue_train,'.fc.signal.bigwig')
   aux <- file.path(con_dnase_fc_train);bwf <- BigWigFile(aux)
   dnasefc <- import(bwf)
@@ -325,7 +325,7 @@ dnase_train<-function(tf,tissue_train){
   rm(dnasefc,x,x1,over);gc()
   
   ###################annotations inclusion########################################
-  gtf<-import(gzfile('/home/ricardo/hd/projects/dream_tf_competition/data/annotations/gencode.v19.annotation.gtf.gz')) #2619444
+  gtf<-import(gzfile(file.path(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
   gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
              gtf$transcript_status!='PUTATIVE']
   pt<-promoters(gtf[gtf$type=='gene'])
@@ -338,7 +338,7 @@ dnase_train<-function(tf,tissue_train){
   faux<-function(x){ifelse(x==0,0,gtf[gtf$type=='gene'][x]$gene_name)}
   dfp[,fon:=faux(fo)]
   dfp[,prn:=faux(pr)];dfp<-dfp[order(id)]
-  load(paste0('/home/ricardo/hd/projects/dream_tf_competition/data/RNAseq/',tissue_train,'.RData'))
+  load(paste0(base,'/RNAseq/',tissue_train,'.RData'))
   xx<-as.data.table(mcols(genes_gtf))
   xx1<-merge(dfp,xx[,c(2:7),with=F],by.x='fon',by.y='gene_name',all.x=T,all.y=F,sort=F, allow.cartesian=T)
   xx1<-xx1[!duplicated(id)]
@@ -355,7 +355,7 @@ dnase_train<-function(tf,tissue_train){
     xc <- setDT(dcast(x, value ~type,fun.aggregate = length))
     return(xc)
   }
-  z<-fprep(gtf);z[,Selenocysteine:= NULL]
+  z<-fprep(gtf);if('Selenocysteine' %in% names(z)){z[,Selenocysteine:= NULL]}
   z1<-fprep(pt);names(z1)<-c('value','promoter2k')
   db<-data.table(as.data.frame(mcols(chip_dnase)))
   xdb<-merge(db,z,by='value',all.x=T,all.y=F)
@@ -363,20 +363,20 @@ dnase_train<-function(tf,tissue_train){
   xdb<-merge(xdb,z1,by='value',all.x=T,all.y=F)
   xdb[, c('promoter2k') :=sapply(promoter2k, function(x){ ifelse(is.na(x),0,x)})]
   mcols(chip_dnase)<-data.frame(xdb,dist=a@elementMetadata$distance,xx2,stringsAsFactors = F)
-  rm(aux,db,x1m,x2,xdb,z,gtf,pt,xx2,z,z1,a,dfp);gc()
+  rm(aux,db,x1m,x2,xdb,z,gtf,pt,xx2,z1,a,dfp);gc()
   #####################end anotations inclusion
-  save(chip_dnase,file=paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_train,'.RData'))
+  save(chip_dnase,file=paste0(tfDir,'/chip_dnase','.',tf,'.',tissue_train,'.RData'))
   #export.bed(chip_dnase,con =file(paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_train,'.bed')))
   require(BSgenome.Hsapiens.UCSC.hg19);require(DNAshapeR)
-  getFasta(chip_dnase,	Hsapiens,	width	= 200,	filename	= paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_train,'.fa'))
+  getFasta(chip_dnase,	Hsapiens,	width	= 200,	filename	= paste0(tfDir,'/chip_dnase','.',tf,'.',tissue_train,'.fa'))
   return(NULL)
 }
 dnase_test<-function(tf,tissue_test){
-  DIR_TF<-paste0(con_results,tf,'/')
-  con_submission<-'/home/ricardo/hd/projects/dream_tf_competition/data/annotations/t/ladder_regions.blacklistfiltered.bed'
-  con_dnase_peak_test<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/essential_training_data/DNASE/peaks/conservative/',
+  #DIR_TF<-paste0(con_results,tf,'/')
+  con_submission<-paste0(base,'/annotations/t/ladder_regions.blacklistfiltered.bed')
+  con_dnase_peak_test<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                               'DNASE.',tissue_test,'.conservative.narrowPeak.gz')
-  con_dnase_fc_test<-paste0('/home/ricardo/hd/projects/dream_tf_competition/data/essential_training_data/DNASE/fold_coverage_wiggles/',
+  con_dnase_fc_test<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
                             'DNASE.',tissue_test,'.fc.signal.bigwig')
   chip<-import(con<-gzfile(con_submission),  format = "BED") 
 
@@ -405,7 +405,7 @@ dnase_test<-function(tf,tissue_test){
   rm(dnasefc,x,x1,over);gc()
   
   ###################annotations inclusion########################################
-  gtf<-import(gzfile('/home/ricardo/hd/projects/dream_tf_competition/data/annotations/gencode.v19.annotation.gtf.gz')) #2619444
+  gtf<-import(gzfile(file.path(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
   gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
              gtf$transcript_status!='PUTATIVE']
   pt<-promoters(gtf[gtf$type=='gene'])
@@ -418,7 +418,7 @@ dnase_test<-function(tf,tissue_test){
   faux<-function(x){ifelse(x==0,0,gtf[gtf$type=='gene'][x]$gene_name)}
   dfp[,fon:=faux(fo)]
   dfp[,prn:=faux(pr)];dfp<-dfp[order(id)]
-  load(paste0('/home/ricardo/hd/projects/dream_tf_competition/data/RNAseq/',tissue_test,'.RData'))
+  load(paste0(base,'/RNAseq/',tissue_test,'.RData'))
   xx<-as.data.table(mcols(genes_gtf))
   xx1<-merge(dfp,xx[,c(2:7),with=F],by.x='fon',by.y='gene_name',all.x=T,all.y=F,sort=F, allow.cartesian=T)
   xx1<-xx1[!duplicated(id)]
@@ -436,7 +436,7 @@ dnase_test<-function(tf,tissue_test){
     xc <- setDT(dcast(x, value ~type,fun.aggregate = length))
     return(xc)
   }
-  z<-fprep(gtf);z[,Selenocysteine:= NULL]
+  z<-fprep(gtf);if('Selenocysteine' %in% names(z)){z[,Selenocysteine:= NULL]}
   z1<-fprep(pt);names(z1)<-c('value','promoter2k')
   db<-data.table(as.data.frame(mcols(chip_dnase)))
   xdb<-merge(db,z,by='value',all.x=T,all.y=F)
@@ -444,13 +444,13 @@ dnase_test<-function(tf,tissue_test){
   xdb<-merge(xdb,z1,by='value',all.x=T,all.y=F)
   xdb[, c('promoter2k') :=sapply(promoter2k, function(x){ ifelse(is.na(x),0,x)})]
   mcols(chip_dnase)<-data.frame(xdb,dist=a@elementMetadata$distance,xx2,stringsAsFactors = F)
-  rm(aux,db,x1m,x2,xdb,z,gtf,pt,xx2,z,z1,a,dfp);gc()
+  rm(aux,db,x1m,x2,xdb,z,gtf,pt,xx2,z1,a,dfp);gc()
   #####################end anotations inclusion
 
-  save(chip_dnase,file=paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_test,'.RData'))
+  save(chip_dnase,file=paste0(tfDir,'/chip_dnase','.',tf,'.',tissue_test,'.RData'))
   #export.bed(chip_dnase,con =file(paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_test,'.bed')))
   require(BSgenome.Hsapiens.UCSC.hg19);require(DNAshapeR)
-  getFasta(chip_dnase,	Hsapiens,	width	= 200,	filename	= paste0(DIR_TF,'chip_dnase','.',tf,'.',tissue_test,'.fa'))
+  getFasta(chip_dnase,	Hsapiens,	width	= 200,	filename	= paste0(tfDir,'/chip_dnase','.',tf,'.',tissue_test,'.fa'))
   return(NULL)
 }
 dnase_final<-function(tf,e){ #e=tissue_subm
@@ -792,9 +792,12 @@ preprocess<-function(tf){
   tfDir<-file.path(subDir,tf)
   #setwd(DIR_TF)
   chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
+  chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
+  chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
+  
   gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
   pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
-  ptest<-file.path('/home/ricardo/hd/projects/dream_tf_competition/data/annotations/test_regions.blacklistfiltered.bed.gz')
+  ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
   memeAma<-file.path('~/hd/meme/bin')
   library(xgboost)
   library(ranger)
@@ -820,7 +823,7 @@ preprocess<-function(tf){
   print(t_train)
   print(t_test)
   print(t_tf)
-
+  make_dnase_over_train_and_test(tf,t_train,t_test)
   x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
   chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
   rm(x);gc()
@@ -833,10 +836,10 @@ preprocess<-function(tf){
   gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
              gtf$transcript_status!='PUTATIVE']
   pt<-promoters(gtf[gtf$type=='gene'])
-  motifs_scores(tf)
+  #motifs_scores(tf)
   #mscores(); ##exec bash *.sh in the tf directory
   #for i in *.sh; do bash $i;done
-  mscores()
+  mscoresacross(tf);file.copy(from='execbash.sh',to=tfDir)
   for(e in t_train){
     mcols(chip)<-data.frame(mcols(chip))[,c('value',e)]
     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
@@ -881,7 +884,7 @@ preprocess<-function(tf){
   }
   for(e in t_test){
     if(length(t_test)!=0){
-      load(chiplabelnona)
+      load(chiptestnona)
       x<-data.table::fread(paste0('gzip -dc ',pladder));names(x)<-c('chr','start','stop')
       chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
       chip<-chip[value];chip$value<-value
@@ -910,7 +913,7 @@ preprocess<-function(tf){
   }
   for(e in t_tf){
     if(length(t_tf)!=0){
-      load(chiplabelnona)
+      load(chipladdernona)
       x<-data.table::fread(paste0('gzip -dc ',pladder));names(x)<-c('chr','start','stop')
       chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
       chip<-chip[value];chip$value<-value
@@ -995,7 +998,11 @@ fannot<-function(chip,dnasepeak,dnasefc){
   xdb[, c('promoter2k') :=sapply(promoter2k, function(x){ ifelse(is.na(x),0,x)})]
   return(data.frame(xdb,dist=a@elementMetadata$distance,xx2,stringsAsFactors = F))
 }
-mscores<-function(){
+#this function to make scores give origin to other 2: 
+# across-cell type and within-cell type
+################################make_scoressh.R #in the writeup folder
+#within-cell type
+mscoreswithin<-function(){
   for(e in t_test){
     if(length(t_test)!=0){
   pwr<-file.path(paste0(writeup,'/'))
@@ -1058,4 +1065,106 @@ mscores<-function(){
     writeLines(text, fileConn)
     }
   }
+}
+#across-cell type
+mscoresacross<-function(tf){
+ # for(tf in tfs[,1]){
+    j<-which(tfs[,1]==tf)
+    t_train<-strsplit(as.character(tfs[j,2]),',')[[1]];t_train<-sub('[[:space:]]','',t_train)
+    t_test<-strsplit(as.character(tfs[j,3]),',')[[1]];t_test<-sub('[[:space:]]','',t_test)  
+    #DIR_TF<-paste0('../TF2/',tf,'/')
+    if(length(t_test)!=0){
+      for(e in t_test){
+        text<-paste0(memeAma,"/ama --o-format gff  --motif ",tf,'  ',
+                     writeup,"/pwm_baseline/all.meme ",
+                     writeup,"/ladder_regions.blacklistfiltered.bed.gz.fasta ",
+                     writeup,"/hg19markov.bkg",
+                     " > meme_full_avg.",e,".txt" )
+        fileConn<-file(paste0(tfDir,"/scores_full_avg.",e,".sh"))
+        writeLines(text, fileConn)
+        close(fileConn)
+        # text<-paste0("~/hd/meme/bin/ama --o-format gff  --scoring max-odds  --motif ",tf,
+        #              " ./pwm_baseline/all.meme ",
+        #              " ladder_regions.blacklistfiltered.bed.gz.fasta ",
+        #              " hg19markov.bkg",
+        #              " > meme_full_max.",e,".txt" )
+        # fileConn<-file(paste0(DIR_TF,"scores_full_max.",e,".sh"))
+        # writeLines(text, fileConn)
+        # close(fileConn)
+      }
+    }
+    for(e in c(t_train,t_test)){
+      filename<-paste0(tfDir,'/chip_dnase','.',tf,'.',e,'.fa')
+      text<-paste0(memeAma,'/ama --o-format gff --motif ',tf,'  ',
+                   writeup,"/pwm_baseline/all.meme ",
+                     filename,' ',
+                   writeup,'/hg19markov.bkg ',
+                   ' > meme_avg.',tf,'.',e,'.txt')
+      fileConn<-file(paste0(tfDir,"/scores_avg.",e,".sh"))
+      writeLines(text, fileConn)
+      close(fileConn)
+      #   text<-paste0('~/hd/meme/bin/ama --o-format gff --scoring max-odds --motif ',tf,
+      #                " ./pwm_baseline/all.meme ",
+      #                DIR_TF,filename,' ',
+      #              ' hg19markov.bkg ',
+      #              ' > meme_max.',tf,'.',e,'.txt')
+      # fileConn<-file(paste0(DIR_TF,"scores_max.",e,".sh"))
+      # writeLines(text, fileConn)
+      # close(fileConn)
+    }
+ # }
+  
+#  for(i in 1:nrow(tfs)){  ## for the full 
+    t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
+    if(length(t_tf)!=0){
+      for( e in t_tf ){
+        #tf<-tfs[i,1]
+        #DIR_TF<-paste0('../TF2/',tf,'/')
+        filename<-'test_regions.blacklistfiltered.bed.gz.fasta'
+        # text<-paste0('~/hd/meme/bin/ama --o-format gff --scoring max-odds  --motif ',tf,
+        #              " ./pwm_baseline/all.meme ",
+        #              filename,' ',
+        #              ' hg19markov.bkg > ',
+        #              DIR_TF,'meme_finalsub_max.',tf,'.',e,'.txt')
+        # fileConn<-file(paste0(DIR_TF,"scores_finalsub_max.",tf,'.',e,".sh"))
+        # writeLines(text, fileConn)
+        # close(fileConn) 
+        text<-paste0(memeAma,'/ama --o-format gff  --motif ',tf,'  ',
+                     writeup,"/pwm_baseline/all.meme ",
+                     filename,' ',
+                     writeup,'/hg19markov.bkg > ',
+                     tfDir,'/meme_finalsub_avg.',tf,'.',e,'.txt')
+        fileConn<-file(paste0(tfDir,"/scores_finalsub_avg.",tf,".",e,".sh"))
+        writeLines(text, fileConn)
+        close(fileConn) 
+      }
+    }
+ # }
+  
+  #for(i in 1:nrow(tfs)){  #for the dnase
+    t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
+    if(length(t_tf)!=0){
+      for( e in t_tf ){
+       # tf<-tfs[i,1]
+        #DIR_TF<-paste0('../TF2/',tf,'/')
+        filename<-paste0(tfDir,'/final_dnase','.',tf,'.',e,'.fa')
+        # text<-paste0('~/hd/meme/bin/ama --o-format gff --scoring max-odds  --motif ',tf,
+        #              " ./pwm_baseline/all.meme ",
+        #              filename,' ',
+        #              ' hg19markov.bkg > ',
+        #              DIR_TF,'meme_finalsub_dnase_max.',tf,'.',e,'.txt')
+        # fileConn<-file(paste0(DIR_TF,"scores_finalsub_dnase_max.",tf,'.',e,".sh"))
+        # writeLines(text, fileConn)
+        # close(fileConn) 
+        text<-paste0(memeAma,'/ama --o-format gff  --motif ',tf,'  ',
+                     writeup,"/pwm_baseline/all.meme ",
+                       filename,' ',
+                     writeup,'/hg19markov.bkg > ',
+                     tfDir,'/meme_finalsub_dnase_avg.',tf,'.',e,'.txt')
+        fileConn<-file(paste0(tfDir,"/scores_finalsub_dnase_avg.",tf,".",e,".sh"))
+        writeLines(text, fileConn)
+        close(fileConn) 
+      }
+    }
+  #}
 }
