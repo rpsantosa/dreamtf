@@ -990,7 +990,7 @@ fannot<-function(chip,dnasepeak,dnasefc){
     xc <- dcast(x, value ~type,fun.aggregate = length)
     return(xc)
   }
-  z<-fprep(gtf);z[,Selenocysteine:= NULL]
+  z<-fprep(gtf);if('Selenocysteine' %in% names(z)){z[,Selenocysteine:= NULL]}
   z1<-fprep(pt);names(z1)<-c('value','promoter2k')
   db<-data.table(as.data.frame(mcols(chip_dnase)))
   xdb<-merge(db,z,by='value',all.x=T,all.y=F)
@@ -1170,13 +1170,115 @@ mscoresacross<-function(tf){
   #}
 }
 preprocess_writeup<-function(tf){
-  #to train
-  load_lables_tsv()
-  pwm_scores()
-  add_dnase_peak()
-  add_dnase_foldcoverage()
-  add_annotation()
-  merge_all()
+  tf<-'E2F6'
+  ################################### library and paths set###############
+  #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
+  #set directory of meme suit (ama)
+  base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
+  writeup <- file.path(base,'writeup')
+  subDir <- file.path(base,'writeup','results')
+  if (!file_test("-d",writeup)){
+    dir.create(file.path(writeup))
+  }
+  if (!file_test("-d",subDir)){
+    dir.create(file.path(subDir))
+  }
+  if (!file_test("-d",file.path(subDir,tf))){
+    dir.create(file.path(subDir,tf))
+  }
+  setwd(writeup)
+  con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
+  tfDir<-file.path(subDir,tf)
+  #setwd(DIR_TF)
+  chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
+  chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
+  chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
+  
+  gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
+  pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
+  ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
+  memeAma<-file.path('~/hd/meme/bin')
+  library(xgboost)
+  library(ranger)
+  require(biovizBase)
+  require(ggbio)
+  require(R.utils)
+  require(gdata)
+  require(plyr)
+  library(GenomicRanges)
+  library(ShortRead)  #clean
+  library(rtracklayer)
+  library(gdata)
+  library(Biostrings)
+  library(data.table)
+  library(caret)
+  tfs<-read.xls(file.path(writeup,"tfs.xls"))
+  source(file.path(writeup,"functions.R"))
+  j<-which(tfs[,1]==tf)
+  t_train<-strsplit(as.character(tfs[j,2]),',')[[1]];t_train<-sub('[[:space:]]','',t_train)
+  t_test<-strsplit(as.character(tfs[j,3]),',')[[1]];t_test<-sub('[[:space:]]','',t_test)
+  t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
+  
+  print(t_train)
+  print(t_test)
+  print(t_tf)
+  ################################### library and paths set###############
+   #to train
+  load_lables_tsv<-function(){
+    x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
+    chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T) 
+    mcols(chip)<-data.frame(mcols(chip),value=1:length(chip)) # to indices purposes
+    return(chip)
+  }
+  extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+  tissue_train<-t_train
+  clabels<-load_lables_tsv()
+  for(tissue_train in t_train){
+    con_dnase_peak_train<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
+                                 'DNASE.',tissue_train,'.conservative.narrowPeak.gz')
+    con_dnase_fc_train<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
+                               'DNASE.',tissue_train,'.fc.signal.bigwig')
+    aux <- file.path(con_dnase_fc_train);bwf <- BigWigFile(aux)
+    dnasefc <- import(bwf)
+    dnasepeak <- import(gzfile(con_dnase_peak_train), format = "BED", extraCols = extraCols_narrowPeak)
+    over<-findOverlaps(chip,dnasepeak)
+    chip_dnase<-chip[unique(over@queryHits)] 
+    x<-setDT(data.frame(qh=over@queryHits,sh=over@subjectHits,
+              mcols(dnasepeak[over@subjectHits])[-1],# remove 'name'
+             bind=factor(unlist(mcols(chip[over@queryHits])[tissue_train])))
+             )
+    x<-x[bind!='A']    #remove ambiguos
+    ##### test variables#########
+    # qplot(pValue, signalValue, colour = bind, shape = bind, 
+    #       data = x)
+    # p <- ggplot(x[,.(pValue,signalValue,bind)], aes(pValue,signalValue))
+    #p + geom_boxplot(aes(colour =bind))
+    ######test variables########
+    x2<-x[, lapply(.SD,max), by=qh]            # ==> toooo fast!
+    x2m<-x[, lapply(.SD,mean), by=qh];names(x2m)<-paste0(names(x2m),'m')
+    x3<-cbind(subset(x2,select=c(4,5,6)),subset(x2m,select=c(4,5,6)))
+    mcols(chip_dnase)<-cbind(mcols(chip_dnase),as.data.frame(x3))
+    rm(chip,dnasepeak,x3,x2m,x);gc()
+    
+    over<-findOverlaps(chip_dnase,dnasefc)
+    x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
+    x1<-x[, lapply(.SD,max), by=qh]  ;x1m<-x[, lapply(.SD,mean), by=qh]
+    chip_dnase$maxfc<-x1[,maxfc];  chip_dnase$maxfcm<-x1m[,maxfc]
+    id<-which(nslots == tissue_train)
+    #filter only B and Us to speed process
+    da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
+    chipf<- fannot(chip_dnase,dnasepeak,dnasefc)
+                     
+    # add_dnase_peak<-function(chip,tissue_train){
+    # add_dnase_foldcoverage<-function(chip,tissue_train){
+  }
+  add_annotation<-function(){
+  pwm_scores<-function(){
+    
+  clabels<-load_lables_tsv()
+    
+      
+  merge_all<-function(){
   #leaderboard round
   load_ladder_leaderboard()
   pwm_scores()
