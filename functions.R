@@ -1230,10 +1230,11 @@ preprocess_writeup<-function(tf){
     mcols(chip)<-data.frame(mcols(chip),value=1:length(chip)) # to indices purposes
     return(chip)
   }
-  extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
   tissue_train<-t_train
   clabels<-load_lables_tsv()
   for(tissue_train in t_train){
+    mcols(clabels)<-mcols(clabels)[c(tissue_train,'value')]
+    extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
     con_dnase_peak_train<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                                  'DNASE.',tissue_train,'.conservative.narrowPeak.gz')
     con_dnase_fc_train<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
@@ -1241,10 +1242,9 @@ preprocess_writeup<-function(tf){
     aux <- file.path(con_dnase_fc_train);bwf <- BigWigFile(aux)
     dnasefc <- import(bwf)
     dnasepeak <- import(gzfile(con_dnase_peak_train), format = "BED", extraCols = extraCols_narrowPeak)
-    over<-findOverlaps(chip,dnasepeak)
-    chip_dnase<-chip[unique(over@queryHits)] 
+    over<-findOverlaps(clabels,dnasepeak)
     x<-setDT(data.frame(qh=over@queryHits,sh=over@subjectHits,
-              mcols(dnasepeak[over@subjectHits])[-1],# remove 'name'
+              mcols(dnasepeak[over@subjectHits])[-c(1,4,6)], # remove c('name','peak')
              bind=factor(unlist(mcols(chip[over@queryHits])[tissue_train])))
              )
     x<-x[bind!='A']    #remove ambiguos
@@ -1254,11 +1254,13 @@ preprocess_writeup<-function(tf){
     # p <- ggplot(x[,.(pValue,signalValue,bind)], aes(pValue,signalValue))
     #p + geom_boxplot(aes(colour =bind))
     ######test variables########
-    x2<-x[, lapply(.SD,max), by=qh]            # ==> toooo fast!
-    x2m<-x[, lapply(.SD,mean), by=qh];names(x2m)<-paste0(names(x2m),'m')
-    x3<-cbind(subset(x2,select=c(4,5,6)),subset(x2m,select=c(4,5,6)))
-    mcols(chip_dnase)<-cbind(mcols(chip_dnase),as.data.frame(x3))
-    rm(chip,dnasepeak,x3,x2m,x);gc()
+    x2<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh','bind')]            # ==> toooo fast!
+    x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh','bind')] ;names(x2m)<-paste0(names(x2m),'m')
+    #chip_dnase<-chip[unique(over@queryHits)] 
+    clabels_peak<-clabels[x2[,qh]]
+    x3<-cbind(subset(x2,select=c(2,3,4)),subset(x2m,select=c(2,3,4)))
+    mcols(clabels_peak)<-cbind(mcols(clabels_peak),as.data.frame(x3))
+    rm(chip,dnasepeak,x3,x2m,x2,x,clabels);gc()
     
     over<-findOverlaps(chip_dnase,dnasefc)
     x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
