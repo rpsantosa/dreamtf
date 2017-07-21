@@ -941,29 +941,32 @@ preprocess<-function(tf){
   }
   return(NULL)
 } 
-fannot<-function(chip,dnasepeak,dnasefc){
-  over<-findOverlaps(chip,dnasepeak)
-  chip_dnase<-chip[unique(over@queryHits)] 
-  x<-data.table(qh=over@queryHits,sh=over@subjectHits,as.data.frame(mcols(dnasepeak[over@subjectHits])));x<-x[,-c(3),,with=F]
-  x2<-x[, lapply(.SD,max), by=qh]            # ==> toooo fast!
-  x2m<-x[, lapply(.SD,mean), by=qh];names(x2m)<-paste0(names(x2m),'m')
-  x3<-cbind(subset(x2,select=c(4,5,6)),subset(x2m,select=c(4,5,6)))
-  mcols(chip_dnase)<-cbind(mcols(chip_dnase),as.data.frame(x3))
-  rm(chip,dnasepeak,x3,x2m,x);gc()
-  
-  over<-findOverlaps(chip_dnase,dnasefc)
-  x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
-  x1<-x[, lapply(.SD,max), by=qh]  ;x1m<-x[, lapply(.SD,mean), by=qh]
-  chip_dnase$maxfc<-x1[,maxfc];  chip_dnase$maxfcm<-x1m[,maxfc]
-  if(is.element(e,t_tf)){
-    id<-which(nslots == e)
-    #filter only B and Us to speed process
-    da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
-  }
-  rm(dnasefc,x,x1,over);gc()
-  
+fannot<-function(chip_dnase,tissue){
+  # over<-findOverlaps(chip,dnasepeak)
+  # chip_dnase<-chip[unique(over@queryHits)] 
+  # x<-data.table(qh=over@queryHits,sh=over@subjectHits,as.data.frame(mcols(dnasepeak[over@subjectHits])));x<-x[,-c(3),,with=F]
+  # x2<-x[, lapply(.SD,max), by=qh]            # ==> toooo fast!
+  # x2m<-x[, lapply(.SD,mean), by=qh];names(x2m)<-paste0(names(x2m),'m')
+  # x3<-cbind(subset(x2,select=c(4,5,6)),subset(x2m,select=c(4,5,6)))
+  # mcols(chip_dnase)<-cbind(mcols(chip_dnase),as.data.frame(x3))
+  # rm(chip,dnasepeak,x3,x2m,x);gc()
+  # 
+  # over<-findOverlaps(chip_dnase,dnasefc)
+  # x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
+  # x1<-x[, lapply(.SD,max), by=qh]  ;x1m<-x[, lapply(.SD,mean), by=qh]
+  # chip_dnase$maxfc<-x1[,maxfc];  chip_dnase$maxfcm<-x1m[,maxfc]
+  # if(is.element(e,t_tf)){
+  #   id<-which(nslots == e)
+  #   #filter only B and Us to speed process
+  #   da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
+  # }
+  # rm(dnasefc,x,x1,over);gc()
+  # 
   ###################annotations inclusion########################################
-  
+  gtf<-import(gzfile(paste0(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
+  gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
+             gtf$transcript_status!='PUTATIVE']
+  #pt<-promoters(gtf[gtf$type=='gene'])
   ####dist genes
   fo<-follow(chip_dnase, gtf[gtf$type=='gene'] );
   pr<-precede(chip_dnase, gtf[gtf$type=='gene']);
@@ -973,7 +976,7 @@ fannot<-function(chip,dnasepeak,dnasefc){
   faux<-function(x){ifelse(x==0,0,gtf[gtf$type=='gene'][x]$gene_name)}
   dfp[,fon:=faux(fo)]
   dfp[,prn:=faux(pr)];dfp<-dfp[order(id)]
-  load(paste0(base,'/RNAseq/',e,'.RData'))
+  load(paste0(base,'/RNAseq/',tissue,'.RData'))
   xx<-as.data.table(mcols(genes_gtf))
   xx1<-merge(dfp,xx[,c(2:7),with=F],by.x='fon',by.y='gene_name',all.x=T,all.y=F,sort=F, allow.cartesian=T)
   xx1<-xx1[!duplicated(id)]
@@ -1170,7 +1173,7 @@ mscoresacross<-function(tf){
   #}
 }
 preprocess_writeup<-function(tf){
-  tf<-'E2F6'
+  tf<-'EGR1'
   ################################### library and paths set###############
   #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
   #set directory of meme suit (ama)
@@ -1223,6 +1226,7 @@ preprocess_writeup<-function(tf){
   print(t_test)
   print(t_tf)
   ################################### library and paths set###############
+  tissue_train<-t_train[1]
    #to train
   load_lables_tsv<-function(){
     x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
@@ -1230,8 +1234,9 @@ preprocess_writeup<-function(tf){
     mcols(chip)<-data.frame(mcols(chip),value=1:length(chip)) # to indices purposes
     return(chip)
   }
-  tissue_train<-t_train
+  #tissue_train<-t_train
   clabels<-load_lables_tsv()
+  # future loop to use lapply to return a list
   for(tissue_train in t_train){
     mcols(clabels)<-mcols(clabels)[c(tissue_train,'value')]
     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
@@ -1245,7 +1250,7 @@ preprocess_writeup<-function(tf){
     over<-findOverlaps(clabels,dnasepeak)
     x<-setDT(data.frame(qh=over@queryHits,sh=over@subjectHits,
               mcols(dnasepeak[over@subjectHits])[-c(1,4,6)], # remove c('name','peak')
-             bind=factor(unlist(mcols(chip[over@queryHits])[tissue_train])))
+             bind=factor(unlist(mcols(clabels[over@queryHits])[tissue_train])))
              )
     x<-x[bind!='A']    #remove ambiguos
     ##### test variables#########
@@ -1258,18 +1263,21 @@ preprocess_writeup<-function(tf){
     x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh','bind')] ;names(x2m)<-paste0(names(x2m),'m')
     #chip_dnase<-chip[unique(over@queryHits)] 
     clabels_peak<-clabels[x2[,qh]]
-    x3<-cbind(subset(x2,select=c(2,3,4)),subset(x2m,select=c(2,3,4)))
+    x3<-cbind(x2[,.(score,signalValue,qValue)],
+              x2m[,.(scorem,signalValuem,qValuem)])
     mcols(clabels_peak)<-cbind(mcols(clabels_peak),as.data.frame(x3))
-    rm(chip,dnasepeak,x3,x2m,x2,x,clabels);gc()
+    rm(x3,x2m,x2,x,clabels);gc()
     
-    over<-findOverlaps(chip_dnase,dnasefc)
+    over<-findOverlaps(clabels_peak,dnasefc)
     x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
-    x1<-x[, lapply(.SD,max), by=qh]  ;x1m<-x[, lapply(.SD,mean), by=qh]
-    chip_dnase$maxfc<-x1[,maxfc];  chip_dnase$maxfcm<-x1m[,maxfc]
-    id<-which(nslots == tissue_train)
+    x1<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]  ;
+    x1m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')]
+    clabels_peak_fc<-clabels_peak;rm(clabels_peak);gc()
+    clabels_peak_fc$maxfc<-x1[,maxfc];  clabels_peak_fc$maxfcm<-x1m[,maxfc]
+    #id<-which(nslots == tissue_train)
     #filter only B and Us to speed process
-    da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
-    chipf<- fannot(chip_dnase,dnasepeak,dnasefc)
+    #da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
+    chipf<- fannot( clabels_peak_fc,dnasepeak,dnasefc)
                      
     # add_dnase_peak<-function(chip,tissue_train){
     # add_dnase_foldcoverage<-function(chip,tissue_train){
