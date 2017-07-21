@@ -965,19 +965,27 @@ fannot<-function(chip_dnase,tissue){
   ###################annotations inclusion########################################
   gtf<-import(gzfile(paste0(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
   gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
-             gtf$transcript_status!='PUTATIVE']
+             gtf$transcript_status!='PUTATIVE' & gtf$type=='gene']
   #pt<-promoters(gtf[gtf$type=='gene'])
   ####dist genes
-  fo<-follow(chip_dnase, gtf[gtf$type=='gene'] );
-  pr<-precede(chip_dnase, gtf[gtf$type=='gene']);
-  dfp<-data.table(fo=fo,pr=pr);dfp[,id:=1:nrow(dfp)]
-  setkey(dfp,fo);dfp[.(NA), fo := 0L]; 
-  setkey(dfp,pr); dfp[.(NA), pr := 0L]
-  faux<-function(x){ifelse(x==0,0,gtf[gtf$type=='gene'][x]$gene_name)}
-  dfp[,fon:=faux(fo)]
-  dfp[,prn:=faux(pr)];dfp<-dfp[order(id)]
-  load(paste0(base,'/RNAseq/',tissue,'.RData'))
-  xx<-as.data.table(mcols(genes_gtf))
+  fo<-follow(chip_dnase, gtf);   # return index in gtf that follow in chip_dnase
+  pr<-precede(chip_dnase, gtf);
+  dfp<-data.table(fo_gtf=fo,pr_gtf=pr);dfp[,id_dnase:=1:nrow(dfp)]
+  setkey(dfp,fo_gtf);dfp[.(NA), fo_gtf := 0L]; 
+  setkey(dfp,pr_gtf); dfp[.(NA), pr_gtf := 0L]
+  faux<-function(x){ifelse(x==0,0,gtf[x]$gene_name)}
+  dnearest<-distanceToNearest(chip_dnase,gtf)
+  dfp[,fon:=faux(fo_gtf)]
+  dfp[,prn:=faux(pr_gtf)]
+  dfp[,dnearest:=x@elementMetadata$distance];dfp<-dfp[order(id_dnase)]
+  #load(paste0(base,'/RNAseq/',tissue,'.RData'))
+  rna<-fread(paste0(base,'/RNAseq/','gene_expression.',tissue,'.biorep1.tsv'))
+  rna[,"transcript_id(s)":=NULL]
+  table_conv<-as.data.table(mcols(gtf)[c('gene_id','gene_name')])
+  table_conv[,gene_id:=unique(gene_id)] #resolve for multiples gene_ids
+  rna<-merge(rna, table_conv,by='gene_id')
+  #xx<-as.data.table(mcols(genes_gtf))
+  rna_dfp<-merge(dfp,rna,by.x='fon',by.y='gene_name')
   xx1<-merge(dfp,xx[,c(2:7),with=F],by.x='fon',by.y='gene_name',all.x=T,all.y=F,sort=F, allow.cartesian=T)
   xx1<-xx1[!duplicated(id)]
   xx2<-merge(xx1,xx[,c(2:7),with=F],by.x='prn',by.y='gene_name',all.x=T,all.y=F,sort=F, allow.cartesian=T)
@@ -985,7 +993,7 @@ fannot<-function(chip_dnase,tissue){
   xx2[,paste0(names(xx[,c(3:7),with=F]),'.y') :=
         lapply(.SD,function(x){ifelse(is.na(x),0,x)}),.SDcols=paste0(names(xx[,c(3:7),with=F]),'.y')]
   xx2[,c('fon','prn','pr','fo'):=list(NULL,NULL,NULL,NULL)]
-  a<-distanceToNearest(chip_dnase, gtf[gtf$type=='gene'] )
+  a<-distanceToNearest(chip_dnase, gtf )
   ##########
   fprep<-function(gtf){
     over<-findOverlaps(gtf,chip_dnase)
