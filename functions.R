@@ -942,42 +942,34 @@ preprocess<-function(tf){
   return(NULL)
 } 
 fannot<-function(chip_dnase,tissue){
-  # over<-findOverlaps(chip,dnasepeak)
-  # chip_dnase<-chip[unique(over@queryHits)] 
-  # x<-data.table(qh=over@queryHits,sh=over@subjectHits,as.data.frame(mcols(dnasepeak[over@subjectHits])));x<-x[,-c(3),,with=F]
-  # x2<-x[, lapply(.SD,max), by=qh]            # ==> toooo fast!
-  # x2m<-x[, lapply(.SD,mean), by=qh];names(x2m)<-paste0(names(x2m),'m')
-  # x3<-cbind(subset(x2,select=c(4,5,6)),subset(x2m,select=c(4,5,6)))
-  # mcols(chip_dnase)<-cbind(mcols(chip_dnase),as.data.frame(x3))
-  # rm(chip,dnasepeak,x3,x2m,x);gc()
-  # 
-  # over<-findOverlaps(chip_dnase,dnasefc)
-  # x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
-  # x1<-x[, lapply(.SD,max), by=qh]  ;x1m<-x[, lapply(.SD,mean), by=qh]
-  # chip_dnase$maxfc<-x1[,maxfc];  chip_dnase$maxfcm<-x1m[,maxfc]
-  # if(is.element(e,t_tf)){
-  #   id<-which(nslots == e)
-  #   #filter only B and Us to speed process
-  #   da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
-  # }
-  # rm(dnasefc,x,x1,over);gc()
-  # 
   ###################annotations inclusion########################################
   gtf<-import(gzfile(paste0(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
   gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
              gtf$transcript_status!='PUTATIVE' & gtf$type=='gene']
   #pt<-promoters(gtf[gtf$type=='gene'])
-  ####dist genes
+  ####################### genes: dist, after and before#######
   fo<-follow(chip_dnase, gtf);   # return index in gtf that follow in chip_dnase
   pr<-precede(chip_dnase, gtf);
-  dfp<-data.table(fo_gtf=fo,pr_gtf=pr);dfp[,id_dnase:=1:nrow(dfp)]
+  dfp<-data.table(fo_gtf=fo,pr_gtf=pr,id_dnase= 1:length(fo))
+  ################test#######
+  table(is.na(fo)) # FALSE   TRUE  870793    848 
+  table(is.na(pr))  # FALSE   TRUE 870669    972 
+  
   setkey(dfp,fo_gtf);dfp[.(NA), fo_gtf := 0L]; 
   setkey(dfp,pr_gtf); dfp[.(NA), pr_gtf := 0L]
-  faux<-function(x){ifelse(x==0,0,gtf[x]$gene_name)}
-  dnearest<-distanceToNearest(chip_dnase,gtf)
+  #faux<-function(x){ifelse(x==0,0,gtf[x]$gene_name)}
+  faux<-function(x){
+    ifelse(x==0,0,gtf[x]$gene_name)
+  }
   dfp[,fon:=faux(fo_gtf)]
   dfp[,prn:=faux(pr_gtf)]
-  dfp[,dnearest:=x@elementMetadata$distance];dfp<-dfp[order(id_dnase)]
+  dnearest<-distanceToNearest(chip_dnase,gtf)
+  ffonpr<-function(x){
+    folowDistance<-distanceToNearest(chip_dnase[i],gtf[dfp[i,fo_gtf]])
+    preceeDistance<-distanceToNearest(chip_dnase,gtf)
+  }
+  ##################the fon and per is problematic and meaningless.
+  dfp[,dnearest:=x@elementMetadata$distance];#dfp<-dfp[order(id_dnase)]
   #load(paste0(base,'/RNAseq/',tissue,'.RData'))
   rna<-fread(paste0(base,'/RNAseq/','gene_expression.',tissue,'.biorep1.tsv'))
   rna[,"transcript_id(s)":=NULL]
@@ -1009,7 +1001,7 @@ fannot<-function(chip_dnase,tissue){
   xdb<-merge(xdb,z1,by='value',all.x=T,all.y=F)
   xdb[, c('promoter2k') :=sapply(promoter2k, function(x){ ifelse(is.na(x),0,x)})]
   return(data.frame(xdb,dist=a@elementMetadata$distance,xx2,stringsAsFactors = F))
-}
+} ## finish later 24/08
 #this function to make scores give origin to other 2: 
 # across-cell type and within-cell type
 ################################make_scoressh.R #in the writeup folder
@@ -1285,12 +1277,12 @@ preprocess_writeup<-function(tf){
     #id<-which(nslots == tissue_train)
     #filter only B and Us to speed process
     #da<-mcols(chip_dnase)[id][[1]]=='A';chip_dnase<-chip_dnase[!da]
-    chipf<- fannot( clabels_peak_fc,dnasepeak,dnasefc)
+ #   chipf<- fannot( clabels_peak_fc,dnasepeak,dnasefc)   # not for this competition
                      
     # add_dnase_peak<-function(chip,tissue_train){
     # add_dnase_foldcoverage<-function(chip,tissue_train){
-  }
-  add_annotation<-function(){
+ # }
+  #add_annotation<-function(){
   pwm_scores<-function(){
     
   clabels<-load_lables_tsv()
