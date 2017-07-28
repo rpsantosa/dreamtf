@@ -1,42 +1,4 @@
 
-prepare_test_final<-function(){
-  library(BSgenome.Hsapiens.UCSC.hg19)
-  library(GenomicRanges)
-  library(data.table)
-  library(DNAshapeR)
-  annot<-'/home/ricardo/hd/projects/dream_tf_competition/data/annotations/'
-  p<-'/home/ricardo/hd/projects/dream_tf_competition/data/ChIPseq/labels/ARID3A.train.labels.tsv.gz'
-  xlabel<-fread(paste0('gzip -dc ',p))
-  con_final<-'/home/ricardo/hd/projects/dream_tf_competition/data/annotations/test_regions.blacklistfiltered.bed.gz'
-  xtest<-data.table::fread(paste0('gzip -dc ',con_final));names(xtest)<-c('chr','start','end')
-  con_submission<-'/home/ricardo/hd/projects/dream_tf_competition/data/annotations/t/ladder_regions.blacklistfiltered.bed.gz'
-  xladder<-data.table::fread(paste0('gzip -dc ',con_submission));names(xladder)<-c('chr','start','end')
-  fremovena<-function(x){
-    chip<-makeGRangesFromDataFrame(x,keep.extra.columns = F,starts.in.df.are.0based=T)
-    chip$value=1:nrow(x)
-    xb<-getSeq(Hsapiens,chip)
-    db<-data.table(oligonucleotideFrequency(xb, width=1));
-    if(ncol(x)>3){db<-cbind(db,x[,-c(1,2,3),with=F])}
-    h<-db[,A!=0 & T!=0 & C!=0 & G!=0]
-    return(chip[h])
-  }
-  
-  chipgt<-fremovena(xtest);value<-chipgt$value
-  getFasta(chipgt,	Hsapiens,	width	= 200,	filename	= paste0(annot,'chiptest_nona.fa'))
-  save(value,file='/home/ricardo/hd/projects/dream_tf_competition/data/annotations/chiptest_nona.RData')
-  rm(xtest,chipgt);gc()
-  
-  chipgtl<-fremovena(xladder);value<-chipgtl$value
-  getFasta(chipgtl,	Hsapiens,	width	= 200,	filename	= paste0(annot,'chipladder_nona.fa'))
-  save(value,file='/home/ricardo/hd/projects/dream_tf_competition/data/annotations/chipladder_nona.RData')
-  rm(xladder,chipgtl);gc()
-  
-  chiplabel<-fremovena(xlabel);value<-chiplabel$value
-  getFasta(chiplabel,	Hsapiens,	width	= 200,	filename	= paste0(annot,'chiplabel_nona.fa'))
-  save(value,file='/home/ricardo/hd/projects/dream_tf_competition/data/annotations/chiplabel_nona.RData')
-  rm(xlabel,chiplabel);gc()
-  
-}
 make_dnase_over_train_and_test<-function(tf,t_train,t_test){
   for(e in t_train){
     print(e)
@@ -1172,6 +1134,86 @@ mscoresacross<-function(tf){
     }
   #}
 }
+
+
+###############################################################################
+#  copy all data in the base directory. 
+#
+      # training_data.ChIPseq.tar
+      # training_data.DNASE_wo_bams.tar
+      # training_data.RNAseq.tar
+      # training_data.annotations.tar
+#
+#  Extract all files in annotations directory
+#  Use bedtools to extract fasta from bed coordinates:
+#  bedtools getfasta -fi hg19.genome.fa -bed test_regions.blacklistfiltered.bed -fo test_regions.blacklistfiltered.fa
+#  bedtools getfasta -fi hg19.genome.fa -bed ladder_regions.blacklistfiltered.bed -fo ladder_regions.blacklistfiltered.fa
+# * background file for ama suite 
+#  in the writeup directory:
+#  fasta-get-markov ../annotations/hg19.genome.fa hg19markov.bkg
+#
+#   
+#
+###############################################################################
+remove_na_save_index<-function(){
+  library(BSgenome.Hsapiens.UCSC.hg19)
+  library(GenomicRanges)
+  library(data.table)
+  library(DNAshapeR)
+  train<-file.path( annotationDir, 'train_regions.blacklistfiltered.bed.gz')
+  test<-file.path( annotationDir,'test_regions.blacklistfiltered.bed.gz')
+  ladder<-file.path( annotationDir,'ladder_regions.blacklistfiltered.bed.gz')
+  
+  fremovena<-function(x){
+    chip<-makeGRangesFromDataFrame(x,keep.extra.columns = F,starts.in.df.are.0based=T)
+    chip$value=1:nrow(x)
+    xb<-getSeq(Hsapiens,chip)
+    db<-data.table(oligonucleotideFrequency(xb, width=1));
+    if(ncol(x)>3){db<-cbind(db,x[,-c(1,2,3),with=F])}
+    h<-db[,A!=0 & T!=0 & C!=0 & G!=0]
+    return(chip[h])
+  }
+  xtest<-data.table::fread(paste0('gzip -dc ',test));names(xtest)<-c('chr','start','end')
+  x<-fremovena(xtest);value<-x$value
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'test_nona.fa'))
+  save(value,file=file.path(annotationDir,'test_nona.RData'))
+  rm(xtest,x);gc()
+  
+  xladder<-data.table::fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
+  x<-fremovena(xladder);value<-x$value
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'ladder_nona.fa'))
+  save(value,file=file.path(annotationDir,'ladder_nona.RData'))
+  rm(xladder,x);gc()
+  
+  xtrain<-data.table::fread(paste0('gzip -dc ',train))
+  x<-fremovena(xtrain);value<-x$value
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'label_nona.fa'))
+  save(value,file=file.path(annotationDir,'label_nona.RData'))
+  rm(xlabel,x);gc()
+  
+}
+remove_na_save_index()
+scoresh<-function(tf,filesh,filescore,filename){
+  tfs<-setDT(tfs)
+  setkey(tfs,F.Name)
+  final<-as.character(tfs[tf,Final.Submission.Cell.Types])
+  #filename<-file.path(base,'annotations/test_regions.blacklistfiltered.bed')
+  if(final!=''){
+    for( e in final){
+      text<-paste0(memeAma,'/ama  --o-format gff  --motif ',tf,'  ',
+                   writeup,'/pwm_plus/',tf,'.txt  ' ,
+                   file.path(annotationDir,filename),' ',
+                   writeup,'/hg19markov.bkg > ',
+                   tfDir,'/',filescore,'.',tf,'.',e,'.txt')
+      fileConn<-file.path(tfDir,paste0(filesh,'.',tf,'.',e,'.sh'))
+      writeLines(text, fileConn)
+      close(fileConn) 
+    }
+  }
+}
+scoresh(tf=tf,'score_test','test','test_nona.fa')
+#execute .sh file with execbash.sh
+
 preprocess_writeup<-function(tf){
   tf<-'EGR1'
   ################################### library and paths set###############
@@ -1190,16 +1232,16 @@ preprocess_writeup<-function(tf){
     dir.create(file.path(subDir,tf))
   }
   setwd(writeup)
-  con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
   tfDir<-file.path(subDir,tf)
+  annotationDir<-file.path(base,'annotations')
   #setwd(DIR_TF)
-  chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
-  chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
-  chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
+  # chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
+  # chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
+  # chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
   
   gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
-  pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
-  ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
+  # pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
+  # ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
   memeAma<-file.path('~/hd/meme/bin')
   library(xgboost)
   library(ranger)
@@ -1229,15 +1271,76 @@ preprocess_writeup<-function(tf){
   tissue_train<-t_train[1]
    #to train
   load_lables_tsv<-function(){
+    con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
     x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
     chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T) 
     mcols(chip)<-data.frame(mcols(chip),value=1:length(chip)) # to indices purposes
     return(chip)
   }
-  #tissue_train<-t_train
+  scoreTF_final_submission<-function(tf,tissue){
+    setkey(tfs,F.Name)
+    final<-as.character(tfs[tf,Final.Submission.Cell.Types])
+    if(final!=''){
+      scoresh(tf=tf,'score_test','test','test_nona.fa')
+      for( e in final){
+        #file to the final submission: train and held out
+        con_test<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
+        x<-data.table::fread(paste0('gzip -dc ',con_test));names(x)<-c('chr','start','stop')
+        grange_test<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T) 
+        rm(x);gc()
+        load(file.path(annotationDir,'test_nona.RData'))  # load index with no na's
+        #grange_test<-grange_test[value]
+        
+        con_dnase_peak_train<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
+                                     'DNASE.',e,'.conservative.narrowPeak.gz')
+        con_dnase_fc_train<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
+                                   'DNASE.',e,'.fc.signal.bigwig')
+        extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+        
+        aux <- file.path(con_dnase_fc_train);bwf <- BigWigFile(aux)
+        dnasefc <- import(bwf)
+        dnasepeak <- import(gzfile(con_dnase_peak_train), format = "BED", extraCols = extraCols_narrowPeak)
+        
+        over<-findOverlaps(grange_test[value],dnasepeak)
+        x<-setDT(data.frame(qh=over@queryHits,sh=over@subjectHits,
+                            mcols(dnasepeak[over@subjectHits])[-c(1,4,6)]) # remove c('name','peak')
+        )
+        ##### test variables#########
+        # qplot(pValue, signalValue, colour = bind, shape = bind, 
+        #       data = x)
+        # p <- ggplot(x[,.(pValue,signalValue,bind)], aes(pValue,signalValue))
+        #p + geom_boxplot(aes(colour =bind))
+        ######test     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+        ########
+        x2<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh','bind')]            # ==> toooo fast!
+        x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh','bind')] ;names(x2m)<-paste0(names(x2m),'m')
+        #chip_dnase<-chip[unique(over@queryHits)] 
+        
+        clabels_peak<-clabels[x2[,qh]]
+        x3<-cbind(x2[,.(score,signalValue,qValue)],
+                  x2m[,.(scorem,signalValuem,qValuem)])
+        mcols(clabels_peak)<-cbind(mcols(clabels_peak),as.data.frame(x3))
+        rm(x3,x2m,x2,x,clabels);gc()
+        
+        over<-findOverlaps(clabels_peak,dnasefc)
+        x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
+        x1<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]  ;
+        x1m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')]
+        clabels_peak_fc<-clabels_peak;rm(clabels_peak);gc()
+        clabels_peak_fc$maxfc<-x1[,maxfc];  clabels_peak_fc$maxfcm<-x1m[,maxfc]
+        
+      }
+    }
+  }  
+  scoreTF_train<-function(tf){
+  }
+    
+  scoreTF_ladder<-function(tf){
+  }
+      
   clabels<-load_lables_tsv()
   # future loop to use lapply to return a list
-  for(tissue_train in t_train){
+  for(tissue_train in c(t_train,t_test){
     mcols(clabels)<-mcols(clabels)[c(tissue_train,'value')]
     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
     con_dnase_peak_train<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
@@ -1284,10 +1387,7 @@ preprocess_writeup<-function(tf){
  # }
   #add_annotation<-function(){
   pwm_scores<-function(){
-    
   clabels<-load_lables_tsv()
-    
-      
   merge_all<-function(){
   #leaderboard round
   load_ladder_leaderboard()
@@ -1306,54 +1406,54 @@ preprocess_writeup<-function(tf){
   
   #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
   #set directory of meme suit (ama)
-  base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
-  writeup <- file.path(base,'writeup')
-  subDir <- file.path(base,'writeup','results')
-  if (!file_test("-d",writeup)){
-    dir.create(file.path(writeup))
-  }
-  if (!file_test("-d",subDir)){
-    dir.create(file.path(subDir))
-  }
-  if (!file_test("-d",file.path(subDir,tf))){
-    dir.create(file.path(subDir,tf))
-  }
-  setwd(writeup)
-  con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
-  tfDir<-file.path(subDir,tf)
-  #setwd(DIR_TF)
-  chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
-  chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
-  chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
-  
-  gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
-  pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
-  ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
-  memeAma<-file.path('~/hd/meme/bin')
-  library(xgboost)
-  library(ranger)
-  require(biovizBase)
-  require(ggbio)
-  require(R.utils)
-  require(gdata)
-  require(plyr)
-  library(GenomicRanges)
-  library(ShortRead)  #clean
-  library(rtracklayer)
-  library(gdata)
-  library(Biostrings)
-  library(data.table)
-  library(caret)
-  tfs<-read.xls(file.path(writeup,"tfs.xls"))
-  source(file.path(writeup,"functions.R"))
-  j<-which(tfs[,1]==tf)
-  t_train<-strsplit(as.character(tfs[j,2]),',')[[1]];t_train<-sub('[[:space:]]','',t_train)
-  t_test<-strsplit(as.character(tfs[j,3]),',')[[1]];t_test<-sub('[[:space:]]','',t_test)
-  t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
-  
-  print(t_train)
-  print(t_test)
-  print(t_tf)
+  # base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
+  # writeup <- file.path(base,'writeup')
+  # subDir <- file.path(base,'writeup','results')
+  # if (!file_test("-d",writeup)){
+  #   dir.create(file.path(writeup))
+  # }
+  # if (!file_test("-d",subDir)){
+  #   dir.create(file.path(subDir))
+  # }
+  # if (!file_test("-d",file.path(subDir,tf))){
+  #   dir.create(file.path(subDir,tf))
+  # }
+  # setwd(writeup)
+  # con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
+  # tfDir<-file.path(subDir,tf)
+  # #setwd(DIR_TF)
+  # chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
+  # chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
+  # chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
+  # 
+  # gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
+  # pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
+  # ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
+  # memeAma<-file.path('~/hd/meme/bin')
+  # library(xgboost)
+  # library(ranger)
+  # require(biovizBase)
+  # require(ggbio)
+  # require(R.utils)
+  # require(gdata)
+  # require(plyr)
+  # library(GenomicRanges)
+  # library(ShortRead)  #clean
+  # library(rtracklayer)
+  # library(gdata)
+  # library(Biostrings)
+  # library(data.table)
+  # library(caret)
+  # tfs<-read.xls(file.path(writeup,"tfs.xls"))
+  # source(file.path(writeup,"functions.R"))
+  # j<-which(tfs[,1]==tf)
+  # t_train<-strsplit(as.character(tfs[j,2]),',')[[1]];t_train<-sub('[[:space:]]','',t_train)
+  # t_test<-strsplit(as.character(tfs[j,3]),',')[[1]];t_test<-sub('[[:space:]]','',t_test)
+  # t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
+  # 
+  # print(t_train)
+  # print(t_test)
+  # print(t_tf)
   make_dnase_over_train_and_test(tf,t_train,t_test)
   x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
   chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
