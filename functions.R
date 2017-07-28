@@ -1175,22 +1175,22 @@ remove_na_save_index<-function(){
   }
   xtest<-data.table::fread(paste0('gzip -dc ',test));names(xtest)<-c('chr','start','end')
   x<-fremovena(xtest);value<-x$value
-  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'test_nona.fa'))
+  rm(xtest);gc()
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= file.path(annotationDir,'test_nona.fa'))
   save(value,file=file.path(annotationDir,'test_nona.RData'))
-  rm(xtest,x);gc()
-  
+
   xladder<-data.table::fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
   x<-fremovena(xladder);value<-x$value
-  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'ladder_nona.fa'))
+  rm(xladder);gc()
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= file.path(annotationDir,'ladder_nona.fa'))
   save(value,file=file.path(annotationDir,'ladder_nona.RData'))
-  rm(xladder,x);gc()
-  
-  xtrain<-data.table::fread(paste0('gzip -dc ',train))
+
+  xtrain<-data.table::fread(paste0('gzip -dc ',train));names(xtrain)<-c('chr','start','end')
   x<-fremovena(xtrain);value<-x$value
-  getFasta(x,	Hsapiens,	width	= 200,	filename	= paste0(annotationDir,'label_nona.fa'))
+  rm(xlabel);gc()
+  getFasta(x,	Hsapiens,	width	= 200,	filename	= file.path(annotationDir,'label_nona.fa'))
   save(value,file=file.path(annotationDir,'label_nona.RData'))
-  rm(xlabel,x);gc()
-  
+  rm(x);gc()
 }
 remove_na_save_index()
 scoresh<-function(tf,filesh,filescore,filename){
@@ -1207,7 +1207,6 @@ scoresh<-function(tf,filesh,filescore,filename){
                    tfDir,'/',filescore,'.',tf,'.',e,'.txt')
       fileConn<-file.path(tfDir,paste0(filesh,'.',tf,'.',e,'.sh'))
       writeLines(text, fileConn)
-      close(fileConn) 
     }
   }
 }
@@ -1278,7 +1277,7 @@ preprocess_writeup<-function(tf){
     return(chip)
   }
   scoreTF_final_submission<-function(tf,tissue){
-    setkey(tfs,F.Name)
+    setkey(setDT(tfs),F.Name)
     final<-as.character(tfs[tf,Final.Submission.Cell.Types])
     if(final!=''){
       scoresh(tf=tf,'score_test','test','test_nona.fa')
@@ -1312,17 +1311,17 @@ preprocess_writeup<-function(tf){
         #p + geom_boxplot(aes(colour =bind))
         ######test     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
         ########
-        x2<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh','bind')]            # ==> toooo fast!
-        x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh','bind')] ;names(x2m)<-paste0(names(x2m),'m')
+        x2<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]            # ==> toooo fast!
+        x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')] ;names(x2m)<-paste0(names(x2m),'m')
         #chip_dnase<-chip[unique(over@queryHits)] 
         
-        clabels_peak<-clabels[x2[,qh]]
+        grange_test_peak<-grange_test[value][x2[,qh]]
         x3<-cbind(x2[,.(score,signalValue,qValue)],
                   x2m[,.(scorem,signalValuem,qValuem)])
-        mcols(clabels_peak)<-cbind(mcols(clabels_peak),as.data.frame(x3))
-        rm(x3,x2m,x2,x,clabels);gc()
+        mcols(grange_test_peak)<-cbind(mcols(grange_test_peak),as.data.frame(x3))
+        rm(x3,x2m,x2,x,grange_test);gc()
         
-        over<-findOverlaps(clabels_peak,dnasefc)
+        over<-findOverlaps(grange_test_peak,dnasefc)
         x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
         x1<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]  ;
         x1m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')]
