@@ -1200,10 +1200,10 @@ scoresh<-function(tf,filesh,filescore,filename){
   #filename<-file.path(base,'annotations/test_regions.blacklistfiltered.bed')
   if(final!=''){
     for( e in final){
-      text<-paste0(memeAma,'/ama  --o-format gff  ,
+      text<-paste0(memeAma,'/ama  --o-format gff ' ,
                    '  ',writeup,'/pwm_plus/',tf,'.txt',
                    '  ',file.path(annotationDir,filename),
-                   '  ',writeup,'/hg19markov.bkg > 
+                   '  ',writeup,'/hg19markov.bkg > ',
                    '  ',tfDir,'/',filescore,'.',tf,'.',e,'.txt')
       fileConn<-file.path(tfDir,paste0(filesh,'.',tf,'.',e,'.sh'))
       writeLines(text, fileConn)
