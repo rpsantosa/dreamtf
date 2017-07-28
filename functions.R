@@ -1187,7 +1187,7 @@ remove_na_save_index<-function(){
 
   xtrain<-data.table::fread(paste0('gzip -dc ',train));names(xtrain)<-c('chr','start','end')
   x<-fremovena(xtrain);value<-x$value
-  rm(xlabel);gc()
+  rm(xtrain);gc()
   getFasta(x,	Hsapiens,	width	= 200,	filename	= file.path(annotationDir,'label_nona.fa'))
   save(value,file=file.path(annotationDir,'label_nona.RData'))
   rm(x);gc()
