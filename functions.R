@@ -1189,7 +1189,7 @@ remove_na_save_index<-function(){
   x<-fremovena(xtrain);value<-x$value
   rm(xtrain);gc()
   getFasta(x,	Hsapiens,	width	= 200,	filename	= file.path(annotationDir,'label_nona.fa'))
-  save(value,file=file.path(annotationDir,'label_nona.RData'))
+  save(value,file=file.path(annotationDir,'train_nona.RData'))
   rm(x);gc()
 }
 remove_na_save_index()
