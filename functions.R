@@ -992,7 +992,7 @@ mscoreswithin<-function(tf){
   close(fileConn)
     }
   }
-####label  
+####label  ##
  for(e in t_train){
   text<-paste0(memeAma,"/ama --o-format gff  --motif ",tf,
                " ",pwr,"pwm_baseline/all.meme ",
