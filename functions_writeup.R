@@ -326,7 +326,6 @@ remove_na_save_index<-function(){
   save(index_nona,file=file.path(annotationDir,'train_nona.RData'))
   rm(x);gc()
 }
-remove_na_save_index()
 scoresh<-function(tf,filesh,filescore,filename){
       text<-paste0(memeAma,'/ama  --o-format gff ' ,
                    '  ',writeup,'/pwm_plus/',tf,'.txt',
@@ -353,17 +352,17 @@ run_execbash_sh_on_tf_folder_after_this<-function(tf){
   # print(leaderboard)
   # print(test)
   # 
-  if((test!='')[1]){
+  if(!identical(test, character(0))){
     for(e in test){
       scoresh(tf=tf,'score_test','test','test_nona.fa')
     }
   }
-  if((leaderboard!='')[1]){
+  if(!identical(leaderboard, character(0))){
     for(e in leaderboard){
       scoresh(tf=tf,'score_ladder','ladder','ladder_nona.fa')
     }
   }
-  if((train!='')[1]){
+  if(!identical(train, character(0))){
     for(e in train){
       scoresh(tf=tf,'score_train','train','train_nona.fa')
     }
@@ -618,10 +617,17 @@ preprocess_writeup<-function(tf){
   print(test)
   
   ################################### library and paths set###############
+  #remove_na_save_index()
   run_execbash_sh_on_tf_folder_after_this(tf)
-  feature_tf_train(tf,train)
-  feature_tf_test(tf,test)
-  feature_tf_ladder(tf,leaderboard)
+  if(!identical(test, character(0))){
+      feature_tf_test(tf,test)
+  }
+  if(!identical(leaderboard, character(0))){
+      feature_tf_ladder(tf,leaderboard)
+  }
+  if(!identical(train, character(0))){
+      feature_tf_train(tf,train)
+  }
   
 }
   
