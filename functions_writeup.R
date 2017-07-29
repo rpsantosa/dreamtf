@@ -429,15 +429,17 @@ feature_tf_test<-function(tf,test){
     x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
     x1<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]  ;
     x1m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')]
-    grange_test_peak_fc<-grange_test_peak;rm(grange_test_peak);gc()
+    grange_test_peak_fc<-grange_test_peak;
+    rm(grange_test_peak);gc()
     grange_test_peak_fc$maxfc<-x1[,maxfc];  grange_test_peak_fc$maxfcm<-x1m[,maxfc]
     featurefcpeak<-setDT(data.frame(mcols(grange_test_peak_fc)))
-    rm(x,x1,x1m,grange_test_peak,grange_test_peak_fc);gc()
+    rm(x,x1,x1m);gc()
     
     #merge with motif scores
     score<-fread(paste0(tfDir,'/test.',tf,'.txt'), data.table=FALSE,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    motifsc<-faux(score)
+    setDT(score)
+    motifsc<-score[,V6] #faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
     save(feature,
@@ -487,16 +489,18 @@ feature_tf_train<-function(tf,train){
     x<-data.table(qh=over@queryHits,sh=over@subjectHits,maxfc=dnasefc[over@subjectHits]$score)
     x1<-x[, lapply(.SD,max), by=qh,.SDcols = -c('sh')]  ;
     x1m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')]
-    grange_train_labels_peak_fc<-grange_train_labels_peak;rm(grange_train_labels_peak);gc()
+    grange_train_labels_peak_fc<-grange_train_labels_peak;
+    rm(grange_train_labels_peak);gc()
     grange_train_labels_peak_fc$maxfc<-x1[,maxfc];  grange_train_labels_peak_fc$maxfcm<-x1m[,maxfc]
     featurefcpeak<-setDT(data.frame(mcols(grange_train_labels_peak_fc)))
     rm(dnasefc,dnasepeak,x,x1,
-       x1m,grange_train_labels_peak_fc,grange_train_labels_peak);gc()
+       x1m,grange_train_labels_peak_fc);gc()
     
     #merge with motif scores
-    score<-fread(paste0(tfDir,'/train.',tf,'.txt'), data.table=FALSE,
+    score<-fread(file.path(tfDir,paste0('train.',tf,'.txt')), data.table=FALSE,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    motifsc<-faux(score)
+    setDT(score)
+    motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
     
@@ -556,7 +560,8 @@ feature_tf_ladder<-function(tf,leaderboard){
     #merge with motif scores
     score<-fread(paste0(tfDir,'/ladder.',tf,'.txt'), data.table=FALSE,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    motifsc<-faux(score)
+    setDT(score)
+    motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
     save(feature,
