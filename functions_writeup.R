@@ -452,6 +452,10 @@ feature_tf_train<-function(tf,train){
   grange_train_labels<-grange_train_labels[index_nona];grange_train_labels$index_nona<-index_nona
   for( e in train){
     grange_train_labels_loop<-grange_train_labels[,c(e,'index_nona')]
+    #remove ambiguous
+    e<-data.table(bind=mcols(grange_train_labels_loop)[[1]]);idnoA<-e[,bind]!='A'
+    grange_train_labels_loop<-grange_train_labels_loop[idnoA]
+    
     con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                            'DNASE.',e,'.conservative.narrowPeak.gz')
     con_dnase_fc<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
@@ -569,6 +573,9 @@ feature_tf_ladder<-function(tf,leaderboard){
   }
 }  
 
+
+run_execbash_sh_on_tf_folder_after_this(tf)
+# execute execbash.sh on the tf directory
 preprocess_writeup<-function(tf){
   tf<-'TCF7L2'
   ################################### library and paths set###############
@@ -623,7 +630,6 @@ preprocess_writeup<-function(tf){
   
   ################################### library and paths set###############
   #remove_na_save_index()
-  run_execbash_sh_on_tf_folder_after_this(tf)
   if(!identical(test, character(0))){
       feature_tf_test(tf,test)
   }
@@ -633,7 +639,6 @@ preprocess_writeup<-function(tf){
   if(!identical(train, character(0))){
       feature_tf_train(tf,train)
   }
-  
 }
   
   
