@@ -336,7 +336,6 @@ scoresh<-function(tf,filesh,filescore,filename){
       writeLines(text, fileConn)
 }
 run_execbash_sh_on_tf_folder_after_this<-function(tf){
-  library(gdata)
   tfs<-read.xls(file.path(writeup,"tfs.xls"))
   setkey(setDT(tfs),F.Name)
   test<-strsplit(as.character(gsub('\xa0','',tfs[tf,Final.Submission.Cell.Types])),',')[[1]]
@@ -574,61 +573,63 @@ feature_tf_ladder<-function(tf,leaderboard){
 }  
 
 
+# execute execbash.sh on the tf directory
+tf<-'MAX'
+################################### library and paths set###############
+#download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
+#set directory of meme suit (ama)
+base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
+writeup <- file.path(base,'writeup')
+subDir <- file.path(base,'writeup','results')
+if (!file_test("-d",writeup)){
+  dir.create(file.path(writeup))
+}
+if (!file_test("-d",subDir)){
+  dir.create(file.path(subDir))
+}
+if (!file_test("-d",file.path(subDir,tf))){
+  dir.create(file.path(subDir,tf))
+}
+setwd(writeup)
+tfDir<-file.path(subDir,tf)
+annotationDir<-file.path(base,'annotations')
+gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
+memeAma<-file.path('~/hd/meme/bin')
+library(xgboost)
+library(ranger)
+library(biovizBase)
+library(ggbio)
+library(R.utils)
+library(gdata)
+library(plyr)
+library(GenomicRanges)
+library(ShortRead)  #clean
+library(rtracklayer)
+library(gdata)
+library(Biostrings)
+library(data.table)
+library(caret)
+#source(file.path(writeup,"functions.R"))
+library(gdata)
+tfs<-read.xls(file.path(writeup,"tfs.xls"))
+setkey(setDT(tfs),F.Name)
+test<-strsplit(as.character(gsub('\xa0','',tfs[tf,Final.Submission.Cell.Types])),',')[[1]]
+leaderboard<-strsplit(as.character(tfs[tf,Leaderboard.Cell.Types]),',')[[1]]
+train<-strsplit(as.character(tfs[tf,Training.Cell.Types]),',')[[1]]
+
+test<-sub('[[:space:]]','',test)
+leaderboard<-sub('[[:space:]]','',leaderboard)
+train<-sub('[[:space:]]','',train)
+
+print(train)
+print(leaderboard)
+print(test)
+
+################################### library and paths set###############
 run_execbash_sh_on_tf_folder_after_this(tf)
 # execute execbash.sh on the tf directory
+
 preprocess_writeup<-function(tf){
-  tf<-'TCF7L2'
-  ################################### library and paths set###############
-  #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
-  #set directory of meme suit (ama)
-  base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
-  writeup <- file.path(base,'writeup')
-  subDir <- file.path(base,'writeup','results')
-  if (!file_test("-d",writeup)){
-    dir.create(file.path(writeup))
-  }
-  if (!file_test("-d",subDir)){
-    dir.create(file.path(subDir))
-  }
-  if (!file_test("-d",file.path(subDir,tf))){
-    dir.create(file.path(subDir,tf))
-  }
-  setwd(writeup)
-  tfDir<-file.path(subDir,tf)
-  annotationDir<-file.path(base,'annotations')
-  gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
-  memeAma<-file.path('~/hd/meme/bin')
-  library(xgboost)
-  library(ranger)
-  library(biovizBase)
-  library(ggbio)
-  library(R.utils)
-  library(gdata)
-  library(plyr)
-  library(GenomicRanges)
-  library(ShortRead)  #clean
-  library(rtracklayer)
-  library(gdata)
-  library(Biostrings)
-  library(data.table)
-  library(caret)
-  #source(file.path(writeup,"functions.R"))
-  library(gdata)
-  tfs<-read.xls(file.path(writeup,"tfs.xls"))
-  setkey(setDT(tfs),F.Name)
-  test<-strsplit(as.character(gsub('\xa0','',tfs[tf,Final.Submission.Cell.Types])),',')[[1]]
-  leaderboard<-strsplit(as.character(tfs[tf,Leaderboard.Cell.Types]),',')[[1]]
-  train<-strsplit(as.character(tfs[tf,Training.Cell.Types]),',')[[1]]
-  
-  test<-sub('[[:space:]]','',test)
-  leaderboard<-sub('[[:space:]]','',leaderboard)
-  train<-sub('[[:space:]]','',train)
-  
-  print(train)
-  print(leaderboard)
-  print(test)
-  
-  ################################### library and paths set###############
   #remove_na_save_index()
   if(!identical(test, character(0))){
       feature_tf_test(tf,test)
