@@ -436,9 +436,9 @@ feature_tf_test<-function(tf,test){
     rm(x,x1,x1m);gc()
     
     #merge with motif scores
-    score<-fread(paste0(tfDir,'/test.',tf,'.txt'), data.table=FALSE,
+    score<-fread(paste0(tfDir,'/test.',tf,'.txt'), data.table=T,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    setDT(score)
+    #setDT(score)
     motifsc<-score[,V6] #faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
@@ -451,7 +451,7 @@ feature_tf_train<-function(tf,train){
   load(file.path(annotationDir,'train_nona.RData'))  # load index with no 'N's - index_nona
   grange_train_labels<-grange_train_labels[index_nona];grange_train_labels$index_nona<-index_nona
   for( e in train){
-    grange_train_labels<-grange_train_labels[,c(e,'index_nona')]
+    grange_train_labels_loop<-grange_train_labels[,c(e,'index_nona')]
     con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                            'DNASE.',e,'.conservative.narrowPeak.gz')
     con_dnase_fc<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
@@ -463,10 +463,10 @@ feature_tf_train<-function(tf,train){
     dnasepeak <- import(gzfile(con_dnase_peak), format = "BED", extraCols = extraCols_narrowPeak)
     
     #overlaps:
-    over<-findOverlaps(grange_train_labels,dnasepeak)
+    over<-findOverlaps(grange_train_labels_loop,dnasepeak)
     x<-data.table(data.frame(qh=over@queryHits,sh=over@subjectHits,
                              mcols(dnasepeak[over@subjectHits])[-c(1,4,6)]))  # remove c('name','pValue','peak')
-    #indextrain=grange_train_labels[unique(over@queryHits)]$index_nona) 
+    #indextrain=grange_train_labels_loop[unique(over@queryHits)]$index_nona) 
     
     ##### train variables#########
     # qplot(pValue, signalValue, colour = bind, shape = bind, 
@@ -479,7 +479,7 @@ feature_tf_train<-function(tf,train){
     x2m<-x[, lapply(.SD,mean), by=qh,.SDcols = -c('sh')] ;names(x2m)<-paste0(names(x2m),'m')
     #chip_dnase<-chip[unique(over@queryHits)] 
     
-    grange_train_labels_peak<-grange_train_labels[unique(over@queryHits)]
+    grange_train_labels_peak<-grange_train_labels_loop[unique(over@queryHits)]
     x3<-cbind(x2[,.(score,signalValue,qValue)],
               x2m[,.(scorem,signalValuem,qValuem)])
     mcols(grange_train_labels_peak)<-cbind(mcols(grange_train_labels_peak),as.data.frame(x3))
@@ -497,9 +497,9 @@ feature_tf_train<-function(tf,train){
        x1m,grange_train_labels_peak_fc);gc()
     
     #merge with motif scores
-    score<-fread(file.path(tfDir,paste0('train.',tf,'.txt')), data.table=FALSE,
+    score<-fread(file.path(tfDir,paste0('train.',tf,'.txt')), data.table=T,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    setDT(score)
+    #setDT(score)
     motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
@@ -523,7 +523,7 @@ feature_tf_ladder<-function(tf,leaderboard){
     extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
     #load files:
     aux <- file.path(con_dnase_fc);bwf <- BigWigFile(aux)
-    dnasefc <- import(bwf)
+    dnasefc <- import(bwf,format = 'bigWig')
     dnasepeak <- import(gzfile(con_dnase_peak), format = "BED", extraCols = extraCols_narrowPeak)
     
     #overlaps:
@@ -558,9 +558,9 @@ feature_tf_ladder<-function(tf,leaderboard){
     featurefcpeak<-setDT(data.frame(mcols(grange_ladder_peak_fc)))
     
     #merge with motif scores
-    score<-fread(paste0(tfDir,'/ladder.',tf,'.txt'), data.table=FALSE,
+    score<-fread(paste0(tfDir,'/ladder.',tf,'.txt'), data.table=T,
                  colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    setDT(score)
+    #setDT(score)
     motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
@@ -618,7 +618,7 @@ preprocess_writeup<-function(tf){
   train<-sub('[[:space:]]','',train)
   
   print(train)
-  print(leaderbgoard)
+  print(leaderboard)
   print(test)
   
   ################################### library and paths set###############
