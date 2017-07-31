@@ -388,6 +388,8 @@ feature_tf_test<-function(tf,test){
   grange_test<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T) 
   load(file.path(annotationDir,'test_nona.RData'))  # load index with no 'N's - index_nona
   grange_test<-grange_test[index_nona];grange_test$index_nona<-index_nona
+  score<-fread(paste0(tfDir,'/test.',tf,'.txt'), data.table=T,
+               colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
   rm(x);gc()
   for( e in test){
     #file to the final submission: train and held out
@@ -435,8 +437,7 @@ feature_tf_test<-function(tf,test){
     rm(x,x1,x1m);gc()
     
     #merge with motif scores
-    score<-fread(paste0(tfDir,'/test.',tf,'.txt'), data.table=T,
-                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+   
     #setDT(score)
     motifsc<-score[,V6] #faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
@@ -449,10 +450,13 @@ feature_tf_train<-function(tf,train){
   grange_train_labels<-load_lables_tsv(tf)
   load(file.path(annotationDir,'train_nona.RData'))  # load index with no 'N's - index_nona
   grange_train_labels<-grange_train_labels[index_nona];grange_train_labels$index_nona<-index_nona
+  score<-fread(file.path(tfDir,paste0('train.',tf,'.txt')), data.table=T,
+               colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+  #setDT(score)
   for( e in train){
     grange_train_labels_loop<-grange_train_labels[,c(e,'index_nona')]
     #remove ambiguous
-    e<-data.table(bind=mcols(grange_train_labels_loop)[[1]]);idnoA<-e[,bind]!='A'
+    aux<-data.table(bind=mcols(grange_train_labels_loop)[[1]]);idnoA<-aux[,bind]!='A'
     grange_train_labels_loop<-grange_train_labels_loop[idnoA]
     
     con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
@@ -500,9 +504,7 @@ feature_tf_train<-function(tf,train){
        x1m,grange_train_labels_peak_fc);gc()
     
     #merge with motif scores
-    score<-fread(file.path(tfDir,paste0('train.',tf,'.txt')), data.table=T,
-                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-    #setDT(score)
+   
     motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
@@ -517,6 +519,8 @@ feature_tf_ladder<-function(tf,leaderboard){
   grange_ladder<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T) 
   load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
   grange_ladder<-grange_ladder[index_nona];grange_ladder$index_nona<-index_nona
+  score<-fread(paste0(tfDir,'/ladder.',tf,'.txt'), data.table=T,
+               colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
   rm(x);gc()
   for( e in leaderboard){
     con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
@@ -561,8 +565,7 @@ feature_tf_ladder<-function(tf,leaderboard){
     featurefcpeak<-setDT(data.frame(mcols(grange_ladder_peak_fc)))
     
     #merge with motif scores
-    score<-fread(paste0(tfDir,'/ladder.',tf,'.txt'), data.table=T,
-                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+   
     #setDT(score)
     motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
