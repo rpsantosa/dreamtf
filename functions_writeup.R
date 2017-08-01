@@ -335,22 +335,24 @@ scoresh<-function(tf,filesh,filescore,filename){
       fileConn<-file.path(tfDir,paste0(filesh,'.',tf,'.sh'))
       writeLines(text, fileConn)
 }
-run_execbash_sh_on_tf_folder_after_this<-function(tf){
+read_train_leaderboard_test<-function(tf){
+  library(gdata)
+  library(data.table)
+  base<-'~/hd/projects/dream_tf_competition/data'
+  writeup <- file.path(base,'writeup')
   tfs<-read.xls(file.path(writeup,"tfs.xls"))
   setkey(setDT(tfs),F.Name)
   test<-strsplit(as.character(gsub('\xa0','',tfs[tf,Final.Submission.Cell.Types])),',')[[1]]
   leaderboard<-strsplit(as.character(tfs[tf,Leaderboard.Cell.Types]),',')[[1]]
   train<-strsplit(as.character(tfs[tf,Training.Cell.Types]),',')[[1]]
-  
   test<-sub('[[:space:]]','',test);#test<-sub('-','.',test)
   leaderboard<-sub('[[:space:]]','',leaderboard);#leaderboard<-sub('-','.',leaderboard)
   train<-sub('[[:space:]]','',train);  #train<-sub('-','.',train)
-
-  
-  # print(train)
-  # print(leaderboard)
-  # print(test)
-  # 
+  return(list(train,leaderboard,test))
+}
+run_execbash_sh_on_tf_folder_after_this<-function(tf){
+  aux<-read_train_leaderboard_test(tf)
+  train<-aux[[1]];leaderboard<-aux[[2]];test<-aux[[3]]
   if(!identical(test, character(0))){
     for(e in test){
       scoresh(tf=tf,'score_test','test','test_nona.fa')
@@ -574,16 +576,31 @@ feature_tf_ladder<-function(tf,leaderboard){
          file=file.path(tfDir,paste0('feature_ladder_',e,'.RData')))
   }
 }  
-load_features<-functioln(e){
-  
-  if(!identical(test, character(0))){
+load_features<-function(tf){
+  aux<-read_train_leaderboard_test(tf)
+  train<-aux[[1]];leaderboard<-aux[[2]];test<-aux[[3]]
+  if(!identical(train, character(0))){
+    #filetrain<-file.path(tfDir,paste0('feature_train_',e,'.RData'))
+    e<-train
+    auxtrain<-lapply(e,function(x)load(file.path(tfDir,paste0('feature_train_',x,'.RData'))))
+    names(auxtrain)<-e
+  }
+  if(!identical(leaderboard, character(0))){
+    #fileladder<-file.path(tfDir,paste0('feature_ladder_',e,'.RData'))
+    e<-leaderboard
+    auxladder<-lapply(e,function(x)load(file.path(tfDir,paste0('feature_ladder_',x,'.RData'))))
+    names(auxladder)<-e
     
   }
-  filetrain<-file.path(tfDir,paste0('feature_train_',e,'.RData'))
-  fileladder<-file.path(tfDir,paste0('feature_ladder_',e,'.RData'))
-  filetest<-file.path(tfDir,paste0('feature_test_',e,'.RData'))
-
-
+  if(!identical(test, character(0))){
+    #filetest<-file.path(tfDir,paste0('feature_test_',e,'.RData'))
+    e<-test
+    auxtest<-lapply(e,function(x)load(file.path(tfDir,paste0('feature_test_',x,'.RData'))))
+    names(auxtest)<-e
+    
+  }
+  dd<-c(auxtrain,auxladder,auxtest)
+  return(dd)
 }
 
 # execute execbash.sh on the tf directory
@@ -591,7 +608,7 @@ tf<-'MAX'
 ################################### library and paths set###############
 #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
 #set directory of meme suit (ama)
-base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
+base<-'~/hd/projects/dream_tf_competition/data'
 writeup <- file.path(base,'writeup')
 subDir <- file.path(base,'writeup','results')
 if (!file_test("-d",writeup)){
