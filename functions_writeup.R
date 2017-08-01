@@ -574,7 +574,17 @@ feature_tf_ladder<-function(tf,leaderboard){
          file=file.path(tfDir,paste0('feature_ladder_',e,'.RData')))
   }
 }  
+load_features<-functioln(e){
+  
+  if(!identical(test, character(0))){
+    
+  }
+  filetrain<-file.path(tfDir,paste0('feature_train_',e,'.RData'))
+  fileladder<-file.path(tfDir,paste0('feature_ladder_',e,'.RData'))
+  filetest<-file.path(tfDir,paste0('feature_test_',e,'.RData'))
 
+
+}
 
 # execute execbash.sh on the tf directory
 tf<-'MAX'
@@ -643,6 +653,7 @@ preprocess_writeup<-function(tf){
   if(!identical(train, character(0))){
       feature_tf_train(tf,train)
   }
+  
 }
   
   
