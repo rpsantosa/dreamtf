@@ -1,3 +1,172 @@
+preprocess<-function(tf){
+  #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
+  #set directory of meme suit (ama)
+  base<-'/home/ricardo/hd/projects/dream_tf_competition/data'
+  writeup <- file.path(base,'writeup')
+  subDir <- file.path(base,'writeup','results')
+  if (!file_test("-d",writeup)){
+    dir.create(file.path(writeup))
+  }
+  if (!file_test("-d",subDir)){
+    dir.create(file.path(subDir))
+  }
+  if (!file_test("-d",file.path(subDir,tf))){
+    dir.create(file.path(subDir,tf))
+  }
+  setwd(writeup)
+  con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
+  tfDir<-file.path(subDir,tf)
+  #setwd(DIR_TF)
+  chiplabelnona<-file.path(base,'annotations/chiplabel_nona.RData')
+  chipladdernona<-file.path(base,'annotations/chipladder_nona.RData')
+  chiptestnona<-file.path(base,'annotations/chiptest_nona.RData')
+  
+  gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
+  pladder<-file.path(base,'annotations/ladder_regions.blacklistfiltered.bed.gz')
+  ptest<-file.path(base,'annotations/test_regions.blacklistfiltered.bed.gz')
+  memeAma<-file.path('~/hd/meme/bin')
+  library(xgboost)
+  library(ranger)
+  library(biovizBase)
+  library(ggbio)
+  library(R.utils)
+  library(gdata)
+  library(plyr)
+  library(GenomicRanges)
+  library(ShortRead)  #clean
+  library(rtracklayer)
+  library(gdata)
+  library(Biostrings)
+  library(data.table)
+  library(caret)
+  tfs<-read.xls(file.path(writeup,"tfs.xls"))
+  source(file.path(writeup,"functions.R"))
+  j<-which(tfs[,1]==tf)
+  t_train<-strsplit(as.character(tfs[j,2]),',')[[1]];t_train<-sub('[[:space:]]','',t_train)
+  t_test<-strsplit(as.character(tfs[j,3]),',')[[1]];t_test<-sub('[[:space:]]','',t_test)
+  t_tf<-strsplit(as.character(gsub('\xa0','',tfs[j,4])),',')[[1]]
+  
+  print(t_train)
+  print(t_test)
+  print(t_tf)
+  make_dnase_over_train_and_test(tf,t_train,t_test)
+  x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
+  chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
+  rm(x);gc()
+  nslots<-names(mcols(chip))
+  nslots<-gsub('.','-',nslots,fixed=T)
+  load(chiplabelnona)
+  chip<-chip[value];chip$value<-value
+  
+  gtf<-import(gzfile(gencodev19)) #2619444
+  gtf<-gtf[gtf$gene_type=='protein_coding' & gtf$transcript_status!='PUTATIVE' & 
+             gtf$transcript_status!='PUTATIVE']
+  pt<-promoters(gtf[gtf$type=='gene'])
+  #motifs_scores(tf)
+  #mscores(); ##exec bash *.sh in the tf directory
+  #for i in *.sh; do bash $i;done
+  mscoreswithin(tf)
+  mscoresacross(tf);file.copy(from='execbash.sh',to=tfDir)
+  for(e in t_train){
+    mcols(chip)<-data.frame(mcols(chip))[,c('value',e)]
+    extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+    con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
+                           'DNASE.',e,'.conservative.narrowPeak.gz')
+    con_dnase_fc<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
+                         'DNASE.',e,'.fc.signal.bigwig')
+    aux <- file.path(con_dnase_fc);bwf <- BigWigFile(aux)
+    dnasefc <- import(bwf)
+    dnasepeak <- import(c1<-gzfile(con_dnase_peak), format = "BED", extraCols = extraCols_narrowPeak)
+    dflinm<-fannot(chip,dnasepeak,dnasefc)
+    ####################### motifscores#############
+    xlab1<-fread(paste0(tfDir,'/meme_label_avg1.',e,'.txt'), data.table=FALSE,
+                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+    xlab2<-fread(paste0(tfDir,'/meme_label_avg2.',e,'.txt'), data.table=FALSE,
+                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+    faux<-function(x){  
+      ll<-table(x$V10)[[1]]
+      np<-dim(x)[1]/ll;y<-x[1:ll,]
+      if(np>1){
+        for(i in 1:(np-1)){
+          y<-cbind(y,x[(i*ll+1):(ll+i*ll),])
+        }
+        y<-y[,c(-seq(3,3*np,3),-seq(1,1+3*np,3))]
+      }else{
+        y<-x$V6
+      }
+      return(y)
+    }
+    # nn<-c('xlab1','xlab2','xlad1','xlad2','xtest1','xtest2')
+    # ni<-sapply(nn,exists);nn[ni]
+    y1<-faux(xlab1)
+    y2<-faux(xlab2)
+    load(chiplabelnona)
+    mot<-data.table(y1=y1,y2=y2,value=value)
+    motm<-merge(dflinm,mot,by='value')
+    setDF(motm);id<-motm[,e]!='A';dflinm<-motm[id,];names(dflinm)[2]<-'bind'
+    save(dflinm,file=paste0(tfDir,'/dflinm_label.',tf,'.',e,'.RData'))
+    dflinm4<-data.frame(y1=y1,y2=y2,bind=data.frame(mcols(chip))[,e])
+    save(dflinm4,file=paste0(tfDir,'/dflinm_label4.',tf,'.',e,'.RData'))
+    rm(dflinm,mot,motm,xlab1,xlab2,dnasefc,dnasepeak);gc()
+  }
+  for(e in t_test){
+    if(length(t_test)!=0){
+      load(chiptestnona)
+      x<-data.table::fread(paste0('gzip -dc ',pladder));names(x)<-c('chr','start','stop')
+      chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
+      chip<-chip[value];chip$value<-value
+      extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+      con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
+                             'DNASE.',e,'.conservative.narrowPeak.gz')
+      con_dnase_fc<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
+                           'DNASE.',e,'.fc.signal.bigwig')
+      aux <- file.path(con_dnase_fc);bwf <- BigWigFile(aux)
+      dnasefc <- import(bwf)
+      dnasepeak <- import(c1<-gzfile(con_dnase_peak), format = "BED", extraCols = extraCols_narrowPeak)
+      dflinm<-fannot(chip,dnasepeak,dnasefc)
+      xlad1<-fread(paste0(tfDir,'/meme_ladder_avg1.',e,'.txt'), data.table=FALSE,
+                   colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+      xlad2<-fread(paste0(tfDir,'/meme_ladder_avg2.',e,'.txt'), data.table=FALSE,
+                   colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+      y1<-faux(xlad1)
+      y2<-faux(xlad2)
+      mot<-data.table(y1=y1,y2=y2,value=value)
+      dflinm<-merge(dflinm,mot,by='value')
+      save(dflinm,file=paste0(tfDir,'/dflinm_ladder.',tf,'.',e,'.RData'))
+      dflinm4<-data.frame(y1=y1,y2=y2)
+      save(dflinm4,file=paste0(tfDir,'/dflinm_label4.',tf,'.',e,'.RData'))
+      rm(dflinm,mot,dnasefc,dnasepeak,y1,y2,xlad1,xlad2);gc()
+    }
+  }
+  for(e in t_tf){
+    if(length(t_tf)!=0){
+      load(chipladdernona)
+      x<-data.table::fread(paste0('gzip -dc ',pladder));names(x)<-c('chr','start','stop')
+      chip<-makeGRangesFromDataFrame(x,keep.extra.columns = T,starts.in.df.are.0based=T)
+      chip<-chip[value];chip$value<-value
+      extraCols_narrowPeak <- c(signalValue = "numeric", pValue = "numeric",qValue = "numeric", peak = "integer")
+      con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
+                             'DNASE.',e,'.conservative.narrowPeak.gz')
+      con_dnase_fc<-paste0(base,'/essential_training_data/DNASE/fold_coverage_wiggles/',
+                           'DNASE.',e,'.fc.signal.bigwig')
+      aux <- file.path(con_dnase_fc);bwf <- BigWigFile(aux)
+      dnasefc <- import(bwf)
+      dnasepeak <- import(c1<-gzfile(con_dnase_peak), format = "BED", extraCols = extraCols_narrowPeak)
+      dflinm<-fannot(chip,dnasepeak,dnasefc)
+      xtest1<-fread(paste0(tfDir,'/meme_test_avg1.',e,'.txt'), data.table=FALSE,
+                    colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+      xtest2<-fread(paste0(tfDir,'/meme_test_avg2.',e,'.txt'), data.table=FALSE,
+                    colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+      y1<-faux(xtest1)
+      y2<-faux(xtest2)
+      mot<-data.table(y1=y1,y2=y2,value=value)
+      dflinm<-merge(dflinm,mot,by='value')
+      save(dflinm,file=paste0(tfDir,'/dflinm_test.',tf,'.',e,'.RData'))
+      rm(dflinm,mot,motm,xlab1,xlab2,dnasefc,dnasepeak,y1,y2,xtest1,xtest2);gc()
+    }
+  }
+  return(NULL)
+} 
 
 make_dnase_over_train_and_test<-function(tf,t_train,t_test){
   for(e in t_train){
