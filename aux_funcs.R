@@ -20,15 +20,6 @@ froc_regression<-function(gs,pr){
   pr<- pr.curve( scores.class0=prec,  weights.class0=gs)
   return(data.frame(roc=roc$auc,pr=pr$auc.davis.goadrich))
 }
-f_combinew<-function(dd,f20,kk=20){
-  dfolds<-lapply(train,createF,dd=dd,kk=kk);names(dfolds)<-train
-  #dd: list of data
-  #f20: interval. which folds from k=20 to get? 1:k folds
-  out<-lapply(seq_along(dd),function(i){
-    ids<-unlist(dfolds[[i]][f20])
-    dd[[i]][ids,]})
-  outx<-rbindlist(out)
-}
 fannot<-function(chip_dnase,tissue){
   ###################annotations inclusion########################################
   gtf<-import(gzfile(paste0(base,'/annotations/gencode.v19.annotation.gtf.gz'))) #2619444
@@ -529,6 +520,15 @@ createF<-function(x,dd,kk){
   a<-createFolds(dd[y][[1]][,get(x)], k=kk , list = TRUE, returnTrain = FALSE)
   return(a)
 }
+f_combinew<-function(dd,f20,kk=20){
+  dfolds<-lapply(train,createF,dd=dd,kk=kk);names(dfolds)<-train
+  #dd: list of data
+  #f20: interval. which folds from k=20 to get? 1:k folds
+  out<-lapply(seq_along(dd),function(i){
+    ids<-unlist(dfolds[[i]][f20])
+    dd[[i]][ids,]})
+  outx<-rbindlist(out)
+}
 s<-function(x){ifelse(x=='B',1,0)}
 
 xgbtrain<-function(i){
@@ -562,11 +562,15 @@ xgbtrain<-function(i){
 }
 rftrain<-function(i){
   nk=100
-  trainRf<-f_combinew(dd[train],1,kk=100);setnames(trainRf,train[1],'bind')
-  trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
-  trainRf[,bind:=s(bind)]
+  # trainRf<-f_combinew(dd[train],1,kk=100);setnames(trainRf,train[1],'bind')
+  # trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
+  # trainRf[,bind:=s(bind)]
   ladderSub<-dd[leaderboard[i]][[1]][,.SD,.SDcols=-c('score','index_nona')] 
   out<-function(i,mtry=2,ns=1,ntree=200){
+    set.seed(12)
+    trainRf<-f_combinew(dd[train],i,kk=100);setnames(trainRf,train[1],'bind')
+    trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
+    trainRf[,bind:=s(bind)]
     outx<-ranger(dependent.variable.name = "bind",
                  data = trainRf,  importance='impurity',min.node.size=ns,
                  write.forest=T,num.trees = ntree,
@@ -580,7 +584,39 @@ rftrain<-function(i){
   save(ra,file='ra.RData')
   return(predxm)
 }
-
+fcs<-function(bstp,rfp,bstpf){
+  score<-fread(file.path(tfDir,paste0('ladder.',tf,'.txt')), data.table=T,
+               colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+  load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
+  ladder<-file.path( annotationDir,'ladder_regions.blacklistfiltered.bed.gz')
+  xladder<-data.table::fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
+  sub<-makeGRangesFromDataFrame(xladder,keep.extra.columns = F,starts.in.df.are.0based=T)
+ 
+  # load(file=paste0('chip_dnase','.',tf,'.',t_test[r],'.RData'))
+  # sub<-import(con<-(gzfile(con_submission)),  format = "BED") 
+  #mcols(sub)<-data.frame(index=1:length(sub))
+  dtsub<-data.frame(mold(sub),index=1:length(sub));setDT(dt1)
+  dtRFXG<-data.table(scoref=scale(bstp+rfp),index_ladder<-dd[leaderboard][[1]][,index_nona])  
+  dtscore<-data.table(score=score[,V6],index=index_nona)
+  
+  
+  
+  dt1<-dt1[index_nona,];dt1[,score:=scale(bstp+rfp)]
+  xfa[is.na(xfa)]<-0;xfa$submit<-apply(xfa[,c(2,3)],1,sum)
+  xf3<-data.frame(mold(sub),pred2=ff(xfa$submit))
+  xf4<-xf3[,c(1,2,3,8)]
+  xf4$start<-xf4$start-1;#xf4$pred<-format(xf4$pred,scientific = T,digits = 2)
+  xf5<-xf4;
+  xf5$start<-as.integer(xf5$start)
+  xf5$end<-as.integer(xf5$end)
+  filename=paste0('L.',tf,'.',t_test[r],'.tab')
+  write.table(xf5,file=filename,quote=F,col.names=F,row.names=F,sep='\t')
+  if(file.exists(paste0(filename,'.gz'))){file.rename(paste0(filename,'.gz'),paste0(filename,'.gz.old'))}
+  gzip(filename, destname=sprintf("%s.gz", filename),skip=F)
+  return(NULL)
+}
+fcs(bstp,rfp,bstpf)
+filename<-paste0('L.',tf,'.',t_test[r],'.tab.gz')
 ################################### library and paths set###############
 #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
 #set directory of meme suit (ama)
