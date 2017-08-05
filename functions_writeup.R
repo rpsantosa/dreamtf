@@ -30,7 +30,7 @@ preprocess_writeup(tf)
 ####################################run machine learning process
 dd<-load_features(tf)
 # take the 90/100 folds of each data/tissue
-dat.train<-f_combinew(dd[train],1:90,kk=100)  
+#dat.train<-f_combinew(dd[train],1:90,kk=100)  
 
 # to verify if number of lines i dat.train is ok --------------------------
 #dat.train<-f_combinew(dd[train],1)
@@ -39,15 +39,18 @@ dat.train<-f_combinew(dd[train],1:90,kk=100)
 
 # prepare to train --------------------------------------------------------
 s<-function(x){ifelse(x=='B',1,0)}
-trainRf<-setDF(f_combinew(dd[train],1,kk=100));
-trainRF<-trainRf[,.SD,.SDcols=-c('score','index_nona',train[1])]
+trainRf<-f_combinew(dd[train],1,kk=100);setnames(trainRf,train[1],'bind')
+trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
+trainRf[,bind:=s(bind)]
+
 ladderSub<-dd[leaderboard]  
-testXg<-f_combinew(dd[train],91:100,kk=100)  
-trainXg<-f_combinew(dd[train],1:90,kk=100)  
-trainXg<- xgb.DMatrix(as.matrix(trainXg[,.SD,.SDcols=-c('score','index_nona',train[1])])
-                        ,label=as.matrix(s(trainXg[,.SD,.SDcols=train[1]][[1]])))
-testXg<- xgb.DMatrix(as.matrix(testXg[,.SD,.SDcols=-c('score','index_nona',train[1])])
-                      ,label=as.matrix(s(testXg[,.SD,.SDcols=train[1]][[1]])))                       
+
+testXg<-f_combinew(dd[train],91:100,kk=100);setnames(testXg,train[1],'bind')  
+trainXg<-f_combinew(dd[train],1:90,kk=100);setnames(trainXg,train[1],'bind')  
+trainXg<- xgb.DMatrix(as.matrix(trainXg[,.SD,.SDcols=-c('score','index_nona','bind')])
+                        ,label=as.matrix(s(trainXg[,bind])))
+testXg<- xgb.DMatrix(as.matrix(testXg[,.SD,.SDcols=-c('score','index_nona','bind')])
+                      ,label=as.matrix(s(testXg[,bind])))                       
 
 # end ---------------------------------------------------------------------
 
