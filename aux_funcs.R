@@ -523,33 +523,59 @@ load_train_and_createfolds<-function(tf,t_train,kk=20,t_test,firstn=F){
   print(names(dd))
   return(list(dd=dd,folds=folds))
 }
-
 createF<-function(x,dd,kk){
   y<-x
   x<-sub('-','\\.',x)
   a<-createFolds(dd[y][[1]][,get(x)], k=kk , list = TRUE, returnTrain = FALSE)
   return(a)
 }
-rftrain<-function(dd,dat.testsub){
-  trainx<-setdiff(train,'SK-N-SH')
-  dat.train<-f_combinew(dd[trainx],1,1:1e5,dfolds,trainx)
-  # ww<-ranger(dependent.variable.name = "bind",
-  #            data = dat.train,  importance='impurity',min.node.size=ns,
-  #            write.forest=T,num.trees = ntree,
-  #            mtry=mtry)
-  # splitselectw<-ff(importance(outx))
+s<-function(x){ifelse(x=='B',1,0)}
+
+xgbtrain<-function(i){
+  testXg<-f_combinew(dd[train],91:100,kk=100);setnames(testXg,train[1],'bind')  
+  trainXg<-f_combinew(dd[train],1:90,kk=100);setnames(trainXg,train[1],'bind')  
+  trainXg<- xgb.DMatrix(as.matrix(trainXg[,.SD,.SDcols=-c('score','index_nona','bind')])
+                        ,label=as.matrix(s(trainXg[,bind])))
+  testXg<- xgb.DMatrix(as.matrix(testXg[,.SD,.SDcols=-c('score','index_nona','bind')])
+                       ,label=as.matrix(s(testXg[,bind])))    
+  ladderSub<-xgb.DMatrix(as.matrix(dd[leaderboard[i]][[1]][,.SD,.SDcols=-c('score','index_nona')]))  
+  
+  
+  watchlist <- list(train = trainXg, eval = testXg)
+  eta<-.479  #0.01
+  max.depth<-31  #40
+  colsample.bytree<-.9779
+  maxd<- 5.2
+  param <- list(objective = "binary:logistic",eval_metric= 'auc',
+                eta=eta,
+                subsample=0.632,
+                'maximize'=T,
+                colsample_bytree=colsample.bytree,
+                max_depth=max.depth,
+                max_delta_step=maxd
+  )
+  bst <-xgb.train(param=param, data =trainXg, nrounds=15,watchlist,early.stop.round=3)
+  bstp<-predict(bst, ladderSub)
+  # id<-getinfo(dxg,'nrow')
+  save(bst,file=paste0('bst.RData'))
+  return(bstp)
+}
+rftrain<-function(i){
+  nk=100
+  trainRf<-f_combinew(dd[train],1,kk=100);setnames(trainRf,train[1],'bind')
+  trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
+  trainRf[,bind:=s(bind)]
+  ladderSub<-dd[leaderboard[i]][[1]][,.SD,.SDcols=-c('score','index_nona')] 
   out<-function(i,mtry=2,ns=1,ntree=200){
-    t_trainx<-setdiff(t_train,'SK-N-SH')
-    dat.train<-setDF(f_combine(dd[t_trainx],i,1:length(t_trainx)))
     outx<-ranger(dependent.variable.name = "bind",
-                 data = dat.train,  importance='impurity',min.node.size=ns,
+                 data = trainRf,  importance='impurity',min.node.size=ns,
                  write.forest=T,num.trees = ntree,
                  mtry=mtry)
     print(i)
     return(outx)
   }
   ra<-lapply(1:nk,out)
-  pred<-sapply(1:nk,function(i){out<-predict(ra[[i]],dat.testsub)$predictions})
+  pred<-sapply(1:nk,function(i){out<-predict(ra[[i]], ladderSub)$predictions})
   predxm<-apply(pred,1,mean)
   save(ra,file='ra.RData')
   return(predxm)
