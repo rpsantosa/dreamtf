@@ -582,7 +582,7 @@ rftrain<-function(i){
   pred<-sapply(1:nk,function(i){out<-predict(ra[[i]], ladderSub)$predictions})
   rfscore<-apply(pred,1,mean)
   save(rfscore,file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
-  save(ra,file=file.path(tfDir,pasteo('ra_',leaderboard[i],'.RData')))
+  save(ra,file=file.path(tfDir,paste0('ra_',leaderboard[i],'.RData')))
   return(rfscore)
 }
 fcs<-function(xgscore,rfscore,i){
