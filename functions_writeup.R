@@ -34,16 +34,16 @@ dd<-load_features(tf)
 # sum(sapply(dd[train],function(x)dim(x)[[1]])/20)
 # end ---------------------------------------------------------------------
 
-#train --------------------------------------------------------
+#create file to submite leaderboard --------------------------------------------------------
 for(i in seq_along(leaderboard)){
   xgscore<-xgbtrain(i)
   rfscore<-rftrain(i)
   fcs(xgscore,rfscore,i)
 }
 #end  
-
-load(file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
-load(file=file.path(tfDir,paste0('xgscore_',leaderboard[i],'.RData')))
+# 
+# load(file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
+# load(file=file.path(tfDir,paste0('xgscore_',leaderboard[i],'.RData')))
 
 
 # end ---------------------------------------------------------------------
