@@ -20,12 +20,12 @@ froc_regression<-function(gs,pr){
   pr<- pr.curve( scores.class0=prec,  weights.class0=gs)
   return(data.frame(roc=roc$auc,pr=pr$auc.davis.goadrich))
 }
-f_combinew<-function(dd,f20,f,dfolds,t_train){
+f_combinew<-function(dd,f20,kk=20){
+  dfolds<-lapply(train,createF,dd=dd,kk=kk);names(dfolds)<-train
   #dd: list of data
-  #f: number of lists to get ( if k=20 and f=2: 2/20 of the total rows from d)
-  #t_train: vector of tissues to train
-  out<-lapply(seq_along(t_train),function(i){
-    ids<-unlist(dfolds[[i]][[f20]][f])
+  #f20: interval. which folds from k=20 to get? 1:k folds
+  out<-lapply(seq_along(dd),function(i){
+    ids<-unlist(dfolds[[i]][f20])
     dd[[i]][ids,]})
   outx<-rbindlist(out)
 }
@@ -270,10 +270,15 @@ feature_tf_train<-function(tf,train){
                colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
   #setDT(score)
   for( e in train){
+    ex<-sub('-','\\.',e) # in  labelfiles, e is written with '.'
     grange_train_labels_loop<-grange_train_labels[,c(e,'index_nona')]
     #remove ambiguous
-    aux<-data.table(bind=mcols(grange_train_labels_loop)[[1]]);idnoA<-aux[,bind]!='A'
-    grange_train_labels_loop<-grange_train_labels_loop[idnoA]
+    a<-setDT(as.data.frame(mcols(grange_train_labels_loop)))
+    al<-a[,grep('A',get(ex),invert = T)] # lines dont have 'A'
+    index_nona_noA<-a[al,][,index_nona]
+    
+    # aux<-data.table(bind=mcols(grange_train_labels_loop)[[1]]);idnoA<-aux[,bind]!='A'
+    # grange_train_labels_loop<-grange_train_labels_loop[idnoA]
     
     con_dnase_peak<-paste0(base,'/essential_training_data/DNASE/peaks/conservative/',
                            'DNASE.',e,'.conservative.narrowPeak.gz')
@@ -324,7 +329,7 @@ feature_tf_train<-function(tf,train){
     motifsc<-score[,V6]#faux(score)
     dfa<-data.table(motifsc=motifsc,index_nona=index_nona)
     feature<-merge(featurefcpeak,dfa,by='index_nona')
-    
+    feature<-feature[index_nona %in% index_nona_noA,]
     save(feature,
          file=file.path(tfDir,paste0('feature_train_',e,'.RData')))
   }
@@ -600,5 +605,4 @@ print(train)
 print(leaderboard)
 print(test)
 
-################################### library and paths set###############
 
