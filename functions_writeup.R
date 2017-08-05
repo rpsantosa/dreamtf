@@ -33,14 +33,17 @@ dd<-load_features(tf)
 #dat.train<-f_combinew(dd[train],1:90,kk=100)  
 
 # to verify if number of lines i dat.train is ok --------------------------
-dat.train<-f_combinew(dd[train],1)
-sum(sapply(dd[train],function(x)dim(x)[[1]])/20)
+# dat.train<-f_combinew(dd[train],1)
+# sum(sapply(dd[train],function(x)dim(x)[[1]])/20)
 # end ---------------------------------------------------------------------
 
 #train --------------------------------------------------------
 
-bstp<-xgbtrain(1)
-rfp<-rftrain(1)
+xgscore<-xgbtrain(1)
+rfscore<-rftrain(1)
+
+load(file.path(tfDir,'xgscore.RData'))
+load(file.path(tfDir,'rfscore.RData'))
 
 # end ---------------------------------------------------------------------
 
