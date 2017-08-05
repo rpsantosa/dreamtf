@@ -1,0 +1,65 @@
+---
+title: WRITE UP of ENCODE-DREAM in vivo Transcription Factor Binding Site Prediction
+  Challenge
+output: html_document
+bibliography: rf.bib
+csl: cell.csl
+#http://rmarkdown.rstudio.com/authoring_bibliographies_and_citations.html
+---
+Name: maximus          
+Ricardo Paixao dos Santos     
+Prof. Katlin Brauer Massirer, Ph.D.  
+Lab of RNA and microRNA Regulation in Disease,                    
+Center for Molecular Biology and Genetic Engineering                     
+University of Campinas, UNICAMP         
+Av Candido Rondon, 400 
+Campinas,13083-875, Brazil   
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##Introduction
+   The model consist of a ensemble of 100 RandomForest [@Breiman2001] (that already is a ensemble of Decision Trees),
+combined with xgboost [@xg] predictions. The choice of this approach had the aim to avoid overfitting.
+   Random Forests have the property of reducing variance keeping the bias low [@Breiman2001], which 
+gives to this algorithm a good power of generalization, fundamental on unseen data as in this competition, 
+and relativelly easier to tune its parameters.
+   Gradient Boosting Machine has competitive perfomace, outperforming RandomForests in some problems. Since their arquitetures are differents, their combination can improve the predictive performance, a fact observed in [@Marbach2012].
+
+## Methods 
+
+* ###Parameters
+   Each one of the 100 RandomForests models were set on the same parameters and their predictions were combined with 
+simple mean. Tunning was made using 3-fold cross validation on some trainning sets.
+   The GBM was used with the R package XGBoost and the parameters set using the xgb.cv (cross validation)
+   For each trainning and test set,we used the information from ChIP-Seq, DNASE fold coverage, DNASE peaks conservative fold, annotations from Ensembl and the average and maximum values motifs scores.
+   It was not possible to use the DNAshape data because of the amount of RAM memory needed and time necessary to process this task.
+   
+* ###PreProcessing
+  The motifs scores were calculated with the meme suite (software ame [@McLeay2010]). These scores and the parameter maxfc (max fold change dnase) were log10 transformed. These parameters, and others from DNASE experiments were obtained
+with both the average and maximum values. 
+Once the randomForest has scale problems, all numeric variables was scaled to mean zero
+and standard deviation 1. 
+
+
+```{r include=FALSE, cache=FALSE}
+library(ggplot2)
+```
+
+
+
+####Prediction Error(MSE) vs Rsquared of 100 RandomForest to Predict 'ATF2' Binding Sites
+
+
+```{r pressure, echo=FALSE}
+load(file='atf2ra.RData')
+df<-data.frame(r.squared=y[,2],prediction.error=x[,2])
+m <- ggplot(df, aes(x = r.squared, y = prediction.error)) +  geom_point()
+m + geom_point(aes(colour = prediction.error)) + scale_colour_gradient(low = "blue") + theme_bw()
+
+```
+
+
+## References
