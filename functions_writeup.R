@@ -38,11 +38,13 @@ dd<-load_features(tf)
 for(i in seq_along(leaderboard)){
   xgscore<-xgbtrain(i)
   rfscore<-rftrain(i)
-  fcs(rfscore,xgscore,i)
+  fcs(xgscore,rfscore,i)
 }
 #end  
-# load(file.path(tfDir,'xgscore.RData'))
-# load(file.path(tfDir,'rfscore.RData'))
+
+load(file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
+load(file=file.path(tfDir,paste0('xgscore_',leaderboard[i],'.RData')))
+
 
 # end ---------------------------------------------------------------------
 

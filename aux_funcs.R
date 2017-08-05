@@ -590,7 +590,7 @@ fcs<-function(xgscore,rfscore,i){
                colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
   load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
   ladder<-file.path( annotationDir,'ladder_regions.blacklistfiltered.bed.gz')
-  xladder<-data.table::fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
+  xladder<-fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
   sub<-makeGRangesFromDataFrame(xladder,keep.extra.columns = F,starts.in.df.are.0based=T)
  
   # load(file=paste0('chip_dnase','.',tf,'.',t_test[r],'.RData'))
@@ -615,9 +615,10 @@ fcs<-function(xgscore,rfscore,i){
   # xf5$end<-as.integer(xf5$end)
   filename=paste0('L.',tf,'.',leaderboard[i],'.tab')
   filex<-file.path(tfDir,filename)
-  write.table(data.frame(dtsub),file=filex,quote=F,col.names=F,row.names=F,sep='\t')
-  if(file.exists(paste0(filename,'.gz'))){file.rename(paste0(filename,'.gz'),paste0(filename,'.gz.old'))}
-  gzip(filename, destname=sprintf("%s.gz", filename),skip=F)
+  #write.table(dtsub,file=filex,quote=F,col.names=F,row.names=F,sep='\t')
+  fwrite(dtsub,file=filex,quote=F,col.names=F,row.names=F,sep='\t')
+  if(file.exists(paste0(filex,'.gz'))){file.rename(paste0(filex,'.gz'),paste0(filex,'.gz.old'))}
+  gzip(filex, destname=file.path(paste0(filex,'.gz')),skip=F)
   return(NULL)
 }
 #fcs(bstp,rfp,bstpf)
