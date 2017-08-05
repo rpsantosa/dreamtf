@@ -29,21 +29,20 @@ run_execbash_sh_on_tf_folder_after_this(tf)
 preprocess_writeup(tf)
 ####################################run machine learning process
 dd<-load_features(tf)
-# take the 90/100 folds of each data/tissue
-#dat.train<-f_combinew(dd[train],1:90,kk=100)  
-
 # to verify if number of lines i dat.train is ok --------------------------
 # dat.train<-f_combinew(dd[train],1)
 # sum(sapply(dd[train],function(x)dim(x)[[1]])/20)
 # end ---------------------------------------------------------------------
 
 #train --------------------------------------------------------
-
-xgscore<-xgbtrain(1)
-rfscore<-rftrain(1)
-
-load(file.path(tfDir,'xgscore.RData'))
-load(file.path(tfDir,'rfscore.RData'))
+for(i in seq_along(leaderboard)){
+  xgscore<-xgbtrain(i)
+  rfscore<-rftrain(i)
+  fcs(rfscore,xgscore,i)
+}
+# 
+# load(file.path(tfDir,'xgscore.RData'))
+# load(file.path(tfDir,'rfscore.RData'))
 
 # end ---------------------------------------------------------------------
 

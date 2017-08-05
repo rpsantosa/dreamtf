@@ -557,7 +557,7 @@ xgbtrain<-function(i){
   bst <-xgb.train(param=param, data =trainXg, nrounds=15,watchlist,early_stop_round=3)
   xgscore<-predict(bst, ladderSub)
   # id<-getinfo(dxg,'nrow')
-  save(xgscore,file=paste0('xgscore.RData'))
+  save(xgscore,file=file.path(tfDir,paste0('xgscore_',leaderboard[i],'.RData')))
   return(xgscore)
 }
 rftrain<-function(i){
@@ -581,11 +581,11 @@ rftrain<-function(i){
   ra<-lapply(1:nk,out)
   pred<-sapply(1:nk,function(i){out<-predict(ra[[i]], ladderSub)$predictions})
   rfscore<-apply(pred,1,mean)
-  save(rfscore,file='rfscore.RData')
-  save(ra,file='ra.RData')
-  return(predxm)
+  save(rfscore,file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
+  save(ra,file=file.path(tfDir,pasteo('ra_',leaderboard[i],'.RData')))
+  return(rfscore)
 }
-fcs<-function(xgscore,rfscore){
+fcs<-function(xgscore,rfscore,i){
   score<-fread(file.path(tfDir,paste0('ladder.',tf,'.txt')), data.table=T,
                colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
   load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
@@ -600,13 +600,10 @@ fcs<-function(xgscore,rfscore){
   # dtRFXG<-data.table(scoref=scale(bstp+rfp),index_ladder<-dd[leaderboard][[1]][,index_nona])  
   # dtscore<-data.table(score=score[,V6],index=index_nona)
   index_ladder<-dd[leaderboard][[1]][,index_nona]
-  dtsub[index %in% index_nona,final:=ff(log(score[,V6]))]
+  #dtsub[index %in% index_nona,final:=ff(log(score[,V6]))/10]
   dtsub[index %in% index_ladder,final:=ff(xgscore+rfscore)]
-  dtsub[index_ladder,final]<-scale(xgscore+rfscore)
-  dtsub[,-c(),with=F]
-  
-  dt1<-dt1[index_nona,];dt1[,score:=scale(xgscore+rfscore)]
-  dtsub[,start:=start-1][,start:=as.integer(start)][,end:=as.integer(end)]
+  dtsub<-dtsub[,-c(4,5,6,7),with=F]
+  dtsub[,start:=start-1]
   
   # 
   # xfa[is.na(xfa)]<-0;xfa$submit<-apply(xfa[,c(2,3)],1,sum)
@@ -617,13 +614,18 @@ fcs<-function(xgscore,rfscore){
   # xf5$start<-as.integer(xf5$start)
   # xf5$end<-as.integer(xf5$end)
   filename=paste0('L.',tf,'.',leaderboard[i],'.tab')
-  write.table(xf5,file=filename,quote=F,col.names=F,row.names=F,sep='\t')
+  filex<-file.path(tfDir,filename)
+  write.table(data.frame(dtsub),file=filex,quote=F,col.names=F,row.names=F,sep='\t')
   if(file.exists(paste0(filename,'.gz'))){file.rename(paste0(filename,'.gz'),paste0(filename,'.gz.old'))}
   gzip(filename, destname=sprintf("%s.gz", filename),skip=F)
   return(NULL)
 }
 #fcs(bstp,rfp,bstpf)
-
+# b<-ff(log(score[index_nona %in% index_ladder,V6]))
+# model<-glm(xgscore ~ b)
+# yweight <- predict(model, list(wt = b),type="response")
+# plot(xgscore,b,pch='.')
+# points(yweight,b,col='red',pch='.')
 ################################### library and paths set###############
 #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
 #set directory of meme suit (ama)
