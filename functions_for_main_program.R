@@ -15,7 +15,7 @@ if (!file_test("-d",file.path(subDir,tf))){
 setwd(writeup)
 ###################################################################
 
-
+ff<-function(x){(x-min(x))/(max(x)-min(x))}
 load_lables_tsv<-function(tf){
   con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
   x<-data.table::fread(paste0('gzip -dc ',con_chipseq_label_tf))
