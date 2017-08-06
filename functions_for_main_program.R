@@ -1,5 +1,5 @@
 #######################set the tf and base directory##############
-tf<-'ARID3A'
+tf<-'FOXA1'
 base<-'~/hd/projects/dream_tf_competition/data'
 writeup <- file.path(base,'writeup')
 subDir <- file.path(base,'writeup','results')
@@ -465,16 +465,15 @@ f_combinew<-function(dd,f20,kk=20){
   outx<-rbindlist(out)
 }
 s<-function(x){ifelse(x=='B',1,0)}
-xgbtrain<-function(i){
+xgbtrain<-function(e){
   testXg<-f_combinew(dd[train],91:100,kk=100);setnames(testXg,train[1],'bind')  
   trainXg<-f_combinew(dd[train],1:90,kk=100);setnames(trainXg,train[1],'bind')  
   trainXg<- xgb.DMatrix(as.matrix(trainXg[,.SD,.SDcols=-c('score','index_nona','bind')])
                         ,label=as.matrix(s(trainXg[,bind])))
   testXg<- xgb.DMatrix(as.matrix(testXg[,.SD,.SDcols=-c('score','index_nona','bind')])
                        ,label=as.matrix(s(testXg[,bind])))    
-  ladderSub<-xgb.DMatrix(as.matrix(dd[leaderboard[i]][[1]][,.SD,.SDcols=-c('score','index_nona')]))  
-  
-  
+  eSub<-xgb.DMatrix(as.matrix(dd[e][[1]][,.SD,.SDcols=-c('score','index_nona')]))  
+
   watchlist <- list(train = trainXg, eval = testXg)
   eta<-.479  #0.01
   max.depth<-31  #40
@@ -489,17 +488,17 @@ xgbtrain<-function(i){
                 max_delta_step=maxd
   )
   bst <-xgb.train(param=param, data =trainXg, nrounds=15,watchlist,early_stop_round=3)
-  xgscore<-predict(bst, ladderSub)
+  xgscore<-predict(bst, eSub)
   # id<-getinfo(dxg,'nrow')
-  save(xgscore,file=file.path(tfDir,paste0('xgscore_',leaderboard[i],'.RData')))
+  save(xgscore,file=file.path(tfDir,paste0('xgscore_',e,'.RData')))
   return(xgscore)
 }
-rftrain<-function(i){
+rftrain<-function(e){
   nk=100
   # trainRf<-f_combinew(dd[train],1,kk=100);setnames(trainRf,train[1],'bind')
   # trainRf<-trainRf[,.SD,.SDcols=-c('score','index_nona')]
   # trainRf[,bind:=s(bind)]
-  ladderSub<-dd[leaderboard[i]][[1]][,.SD,.SDcols=-c('score','index_nona')] 
+  eSub<-dd[e][[1]][,.SD,.SDcols=-c('score','index_nona')] 
   out<-function(i,mtry=2,ns=1,ntree=200){
     set.seed(12)
     trainRf<-f_combinew(dd[train],i,kk=100);setnames(trainRf,train[1],'bind')
@@ -513,41 +512,38 @@ rftrain<-function(i){
     return(outx)
   }
   ra<-lapply(1:nk,out)
-  pred<-sapply(1:nk,function(i){out<-predict(ra[[i]], ladderSub)$predictions})
+  pred<-sapply(1:nk,function(i){out<-predict(ra[[i]], eSub)$predictions})
   rfscore<-apply(pred,1,mean)
-  save(rfscore,file=file.path(tfDir,paste0('rfscore_',leaderboard[i],'.RData')))
-  save(ra,file=file.path(tfDir,paste0('ra_',leaderboard[i],'.RData')))
+  save(rfscore,file=file.path(tfDir,paste0('rfscore_',e,'.RData')))
+  save(ra,file=file.path(tfDir,paste0('ra_',e,'.RData')))
   return(rfscore)
 }
-fcs<-function(xgscore,rfscore,i){
-  score<-fread(file.path(tfDir,paste0('ladder.',tf,'.txt')), data.table=T,
-               colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
-  load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
-  ladder<-file.path( annotationDir,'ladder_regions.blacklistfiltered.bed.gz')
-  xladder<-fread(paste0('gzip -dc ',ladder));names(xladder)<-c('chr','start','end')
-  sub<-makeGRangesFromDataFrame(xladder,keep.extra.columns = F,starts.in.df.are.0based=T)
- 
-  # load(file=paste0('chip_dnase','.',tf,'.',t_test[r],'.RData'))
-  # sub<-import(con<-(gzfile(con_submission)),  format = "BED") 
-  #mcols(sub)<-data.frame(index=1:length(sub))
+fcs<-function(xgscore,rfscore,e){
+  if(any(e==leaderboard)){
+    ladderfile<-file.path( annotationDir,'ladder_regions.blacklistfiltered.bed.gz')
+    score<-fread(file.path(tfDir,paste0('ladder.',tf,'.txt')), data.table=T,
+                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+    load(file.path(annotationDir,'ladder_nona.RData'))  # load index with no 'N's - index_nona
+    xladder<-fread(paste0('gzip -dc ',ladderfile));names(xladder)<-c('chr','start','end')
+    sub<-makeGRangesFromDataFrame(xladder,keep.extra.columns = F,starts.in.df.are.0based=T)
+    filename=paste0('L.',tf,'.',e,'.tab')
+  }
+  if(any(e==test)){
+    testfile<-file.path( annotationDir,'test_regions.blacklistfiltered.bed.gz')
+    score<-fread(file.path(tfDir,paste0('test.',tf,'.txt')), data.table=T,
+                 colClasses=c("character",'NULL','NULL','NULL','NULL','numeric','NULL','NULL','NULL','character'))
+    load(file.path(annotationDir,'test_nona.RData'))  # load index with no 'N's - index_nona
+    xtest<-fread(paste0('gzip -dc ',testfile));names(xtest)<-c('chr','start','end')
+    sub<-makeGRangesFromDataFrame(xtest,keep.extra.columns = F,starts.in.df.are.0based=T)
+    filename=paste0('F.',tf,'.',e,'.tab')
+  }
   dtsub<-data.frame(mold(sub),index=1:length(sub),final=0);setDT(dtsub)
-  # dtRFXG<-data.table(scoref=scale(bstp+rfp),index_ladder<-dd[leaderboard][[1]][,index_nona])  
-  # dtscore<-data.table(score=score[,V6],index=index_nona)
-  index_ladder<-dd[leaderboard][[1]][,index_nona]
+  index_ladder<-dd[[e]][,index_nona]
   #dtsub[index %in% index_nona,final:=ff(log(score[,V6]))/10]
   dtsub[index %in% index_ladder,final:=ff(xgscore+rfscore)]
   dtsub<-dtsub[,-c(4,5,6,7),with=F]
   dtsub[,start:=start-1]
-  
-  # 
-  # xfa[is.na(xfa)]<-0;xfa$submit<-apply(xfa[,c(2,3)],1,sum)
-  # xf3<-data.frame(mold(sub),pred2=ff(xfa$submit))
-  # xf4<-xf3[,c(1,2,3,8)]
-  # xf4$start<-xf4$start-1;#xf4$pred<-format(xf4$pred,scientific = T,digits = 2)
-  # xf5<-xf4;
-  # xf5$start<-as.integer(xf5$start)
-  # xf5$end<-as.integer(xf5$end)
-  filename=paste0('L.',tf,'.',leaderboard[i],'.tab')
+
   filex<-file.path(tfDir,filename)
   #write.table(dtsub,file=filex,quote=F,col.names=F,row.names=F,sep='\t')
   fwrite(dtsub,file=filex,quote=F,col.names=F,row.names=F,sep='\t')

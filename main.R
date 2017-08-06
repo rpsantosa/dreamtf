@@ -32,11 +32,11 @@ dd<-load_features(tf)
 # sum(sapply(dd[train],function(x)dim(x)[[1]])/20)
 # end ---------------------------------------------------------------------
 
-#create file to submite leaderboard --------------------------------------------------------
-for(i in seq_along(leaderboard)){
-  xgscore<-xgbtrain(i)
-  rfscore<-rftrain(i)
-  fcs(xgscore,rfscore,i)
+#create file to submite leaderboard and test if exist --------------------------------------------------------
+for(e in c(leaderboard,test)){
+  xgscore<-xgbtrain(e)
+  rfscore<-rftrain(e)
+  fcs(xgscore,rfscore,e)
 }
 #end  
 # 
