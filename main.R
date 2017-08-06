@@ -20,7 +20,6 @@
 #
 ###############################################################################
 # execute execbash.sh on the tf directory
-tf<-'EGR1';
 source('functions_for_main_program.R')
 ##################################### run main process##################
 run_execbash_sh_on_tf_folder_after_this(tf)
