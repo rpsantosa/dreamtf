@@ -21,6 +21,8 @@ training_data.RNAseq.tar
 training_data.annotations.tar
 ```
 
+------------------------------------------------------------------------
+
 #### Extract all files
 
 Under the ***writeup*** dirctory, at the beginning of ***'functions\_for\_main\_program.R'*** set the variables **tf**, for what transcription factor will be assessed and the **base** directory.
@@ -32,6 +34,8 @@ source('functions_for_main_program.R')
 ```
 
 As it is stated in the **main.R** execute the function **run\_execbash\_sh\_on\_tf\_folder\_after\_this(tf)** and, using the terminal(I used ubuntu xenial), go to the folder **'base/writeup/results/tf'** where the **tf** was defined in the beginning.
+
+------------------------------------------------------------------------
 
 Execute execbash.sh on the tf directory, to get the file with the TF score using the meme suit
 
@@ -45,7 +49,8 @@ In annotations directory, do: Use bedtools to extract fasta from bed coordinates
  bedtools getfasta -fi hg19.genome.fa -bed ladder_regions.blacklistfiltered.bed -fo ladder_regions.blacklistfiltered.fa
 ```
 
-#### Get background file for ama suite in the writeup directory:
+Get background file for meme suite (ama) in the writeup directory:
+------------------------------------------------------------------
 
 ``` bash
 
