@@ -50,7 +50,7 @@ In annotations directory, do: Use bedtools to extract fasta from bed coordinates
  fasta-get-markov ../annotations/hg19.genome.fa hg19markov.bkg
 ```
 
-Running Machine Learning and genereting file to submit
+Running Machine Learning and Genereting File to Submit
 ------------------------------------------------------
 
 At this point, everything shoud work fine, generating the file to submit in the respective **tf** directory:
@@ -65,3 +65,17 @@ for(i in seq_along(leaderboard)){
   fcs(xgscore,rfscore,i)
 }
 ```
+
+Name: maximus
+
+Ricardo Paixao dos Santos
+
+Prof. Katlin Brauer Massirer, Ph.D.
+
+Lab of RNA and microRNA Regulation in Disease,
+
+Center for Molecular Biology and Genetic Engineering
+
+University of Campinas, UNICAMP
+
+Av Candido Rondon, 400 Campinas,13083-875, Brazil
