@@ -4,6 +4,8 @@ ENCODE-DREAM in vivo Transcription Factor Binding Site Prediction Challenge
 Instructions
 ------------
 
+Competition:
+**source: <https://www.synapse.org/#!Synapse:syn6131484/wiki/402033> **
 Install meme suite to use **ama** to calculate tf scores along the DNA.
 
 Define a **base** directory and, on top of that, a **writeup** directory.
@@ -75,4 +77,5 @@ Center for Molecular Biology and Genetic Engineering
 University of Campinas, UNICAMP
 Av Candido Rondon, 400 Campinas,13083-875, Brazil
 
-ps: For now, this codes are enouth to get file to submit. Later I can add some graphics and insights.
+*ps: For now, this codes are enouth to get file to submit.*
+*Later I can add some graphics and insights.*

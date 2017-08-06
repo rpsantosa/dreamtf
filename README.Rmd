@@ -8,14 +8,15 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Instructions
+Competition:  
+**source: https://www.synapse.org/#!Synapse:syn6131484/wiki/402033 **  
 Install meme suite to use **ama** to calculate tf scores along the DNA.
 
 Define a **base** directory and, on top of that, a **writeup** directory.
 
 Copy all the github files in the **base/writeup/** directory.
 
-Copy these data in the **base** directory:
-
+Copy these data in the **base** directory:  
 ```{r, engine = 'bash', eval = FALSE}
 training_data.ChIPseq.tar
 training_data.DNASE_wo_bams.tar
@@ -79,5 +80,5 @@ University of Campinas, UNICAMP
 Av Candido Rondon, 400 Campinas,13083-875, Brazil  
 
 
-ps: For now, this codes are enouth to get file to submit. 
-Later I can add some graphics and insights.
+*ps: For now, this codes are enouth to get file to submit.*   
+*Later I can add some graphics and insights.*  
