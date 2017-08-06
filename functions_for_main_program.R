@@ -1,3 +1,20 @@
+#######################set the tf and base directory##############
+tf<-'ARID3A'
+base<-'~/hd/projects/dream_tf_competition/data'
+writeup <- file.path(base,'writeup')
+subDir <- file.path(base,'writeup','results')
+if (!file_test("-d",writeup)){
+  dir.create(file.path(writeup))
+}
+if (!file_test("-d",subDir)){
+  dir.create(file.path(subDir))
+}
+if (!file_test("-d",file.path(subDir,tf))){
+  dir.create(file.path(subDir,tf))
+}
+setwd(writeup)
+###################################################################
+
 
 load_lables_tsv<-function(tf){
   con_chipseq_label_tf<-file.path(base,'ChIPseq/labels',paste0(tf,'.train.labels.tsv.gz'))
@@ -538,28 +555,10 @@ fcs<-function(xgscore,rfscore,i){
   gzip(filex, destname=file.path(paste0(filex,'.gz')),skip=F)
   return(NULL)
 }
-#fcs(bstp,rfp,bstpf)
-# b<-ff(log(score[index_nona %in% index_ladder,V6]))
-# model<-glm(xgscore ~ b)
-# yweight <- predict(model, list(wt = b),type="response")
-# plot(xgscore,b,pch='.')
-# points(yweight,b,col='red',pch='.')
+
 ################################### library and paths set###############
 #download here, in the base directory these dat: annotation, DNASE, RNAseq, CHIPseq
 #set directory of meme suit (ama)
-base<-'~/hd/projects/dream_tf_competition/data'
-writeup <- file.path(base,'writeup')
-subDir <- file.path(base,'writeup','results')
-if (!file_test("-d",writeup)){
-  dir.create(file.path(writeup))
-}
-if (!file_test("-d",subDir)){
-  dir.create(file.path(subDir))
-}
-if (!file_test("-d",file.path(subDir,tf))){
-  dir.create(file.path(subDir,tf))
-}
-setwd(writeup)
 tfDir<-file.path(subDir,tf)
 annotationDir<-file.path(base,'annotations')
 gencodev19<-file.path(base,'annotations/gencode.v19.annotation.gtf.gz')
